@@ -1,4 +1,4 @@
-import type { BrowserType, ScreenshotOption, TraceOption } from "./types.js";
+import type { BrowserType, ScreenshotOption, TraceOption, VideoOption } from "./types.js";
 
 export const CONFIG_FILE_NAMES = [
   "goodgirl.config.ts",
@@ -15,5 +15,6 @@ export const DEFAULT_RETRIES = 1;
 export const DEFAULT_BROWSER: BrowserType = "chromium";
 export const DEFAULT_SCREENSHOT: ScreenshotOption = "only-on-failure";
 export const DEFAULT_TRACE: TraceOption = "retain-on-failure";
+export const DEFAULT_VIDEO: VideoOption = "off";
 export const DEFAULT_BASE_URL = "http://127.0.0.1:4173";
 export const DEFAULT_TEST_DIR = "tests";
