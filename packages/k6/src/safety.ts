@@ -15,6 +15,10 @@ export interface TargetSafetyOptions {
 
 /**
  * Extracts candidate URLs called by an HTTP load test script using regex inspection.
+ *
+ * NOTE: Static analysis inspects literal URL strings within script source text.
+ * Dynamically constructed URLs, environment variable targets, or HTTP redirects
+ * cannot be guaranteed detectable statically.
  */
 export function extractTargetUrls(scriptContent: string): string[] {
   const urlRegex = /https?:\/\/[a-zA-Z0-9.-]+(?::[0-9]+)?(?:[^\s"'`)]*)/g;

@@ -64,4 +64,6 @@ pnpm qa load run examples/k6/smoke.js -- --http-debug
 ```
 
 ## Safety Controls
-By default, GoodGirl load tests only permit execution against localhost and loopback interfaces (`127.0.0.1`, `localhost`, `::1`). To execute against remote or non-local endpoints, pass `--allow-external` or configure `k6.allowExternalTargets: true` in `goodgirl.config.ts`.
+By default, GoodGirl load tests only permit execution against localhost and loopback interfaces (`127.0.0.1`, `localhost`, `::1`). To execute against remote or non-local endpoints, pass `--allow-external` or configure `k6.allowExternal: true` in `goodgirl.config.ts`.
+
+> **Limitation Notice**: Target safety verification inspects literal URL string matches within script source files. Dynamically constructed URLs, environment variable targets, or HTTP server redirects cannot be guaranteed detectable via static inspection.

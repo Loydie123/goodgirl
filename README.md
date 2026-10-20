@@ -521,6 +521,9 @@ To prevent accidental load injection against remote systems or production servic
 - Non-local targets trigger an immediate safety halt.
 - To permit remote endpoints, provide the `--allow-external` CLI flag or set `k6.allowExternal: true` in `goodgirl.config.ts`.
 
+> [!NOTE]
+> Safety verification relies on static source analysis of script files for literal URLs. It cannot guarantee detection of dynamically concatenated URLs, runtime environment overrides, or server-side HTTP redirects. Operators remain responsible for the endpoints their scripts target.
+
 #### Thresholds & Exit Codes
 
 k6 thresholds evaluate metric criteria (e.g. `p(95)<400ms`, `rate<0.01`). When any threshold fails, GoodGirl propagates k6's native exit code `99`, failing CI pipelines immediately on performance regressions.
