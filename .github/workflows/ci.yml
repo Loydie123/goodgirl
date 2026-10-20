@@ -54,14 +54,23 @@ jobs:
         if: runner.os != 'Linux'
         run: pnpm exec playwright install chromium firefox webkit
 
+      - name: Setup Grafana k6
+        uses: grafana/setup-k6-action@v1
+
       - name: Run GoodGirl doctor check
         run: pnpm qa doctor
+
+      - name: Run GoodGirl load doctor check
+        run: pnpm qa load doctor
 
       - name: Run GoodGirl test suite
         run: pnpm qa test all
 
       - name: Run sample project test suite
         run: pnpm --filter sample-project test
+
+      - name: Run k6 smoke performance test
+        run: pnpm qa load run examples/k6/smoke.js
 
       - name: Upload test artifacts on failure
         if: failure()
