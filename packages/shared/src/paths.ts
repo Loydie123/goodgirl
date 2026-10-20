@@ -5,6 +5,7 @@ import {
   CONFIG_FILE_NAMES,
   DEFAULT_HTML_REPORT_DIR_NAME,
   DEFAULT_JSON_REPORT_NAME,
+  DEFAULT_K6_RESULTS_NAME,
   DEFAULT_RESULTS_DIR,
 } from "./constants.js";
 
@@ -66,5 +67,22 @@ export function getResultsPaths(
     resultsDir,
     jsonReportPath: join(resultsDir, DEFAULT_JSON_REPORT_NAME),
     htmlReportDir: join(resultsDir, DEFAULT_HTML_REPORT_DIR_NAME),
+  };
+}
+
+/**
+ * Computes standard report and artifact paths for a k6 load test run.
+ */
+export function getK6ResultsPaths(
+  cwd: string,
+  customResultsDir?: string,
+): {
+  resultsDir: string;
+  k6JsonReportPath: string;
+} {
+  const resultsDir = resolve(cwd, customResultsDir ?? DEFAULT_RESULTS_DIR);
+  return {
+    resultsDir,
+    k6JsonReportPath: join(resultsDir, DEFAULT_K6_RESULTS_NAME),
   };
 }

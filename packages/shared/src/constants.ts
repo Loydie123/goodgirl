@@ -9,6 +9,9 @@ export const CONFIG_FILE_NAMES = [
 export const DEFAULT_RESULTS_DIR = "goodgirl-results";
 export const DEFAULT_JSON_REPORT_NAME = "results.json";
 export const DEFAULT_HTML_REPORT_DIR_NAME = "html";
+export const DEFAULT_K6_RESULTS_NAME = "k6-results.json";
+export const DEFAULT_K6_SUMMARY_TREND_STATS = "avg,min,med,max,p(90),p(95),p(99)";
+export const DEFAULT_ALLOWED_HOSTS = ["127.0.0.1", "localhost", "::1", "0.0.0.0"] as const;
 
 export const DEFAULT_TIMEOUT_MS = 30000;
 export const DEFAULT_RETRIES = 1;
