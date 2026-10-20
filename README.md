@@ -653,6 +653,12 @@ Security testing introduces operational risks. GoodGirl enforces strict safety g
 - **Credential & Token Redaction**: Terminal cards automatically scrub authorization headers (`Bearer ***`, `Basic ***`), passwords, and API keys.
 - **Pipeline Failure Gates (`failOnRisk`)**: Break builds when vulnerabilities meet or exceed defined risk levels (e.g. `--fail-on High` or `failOnRisk: "Medium"`).
 
+> [!NOTE]
+> **Safety & Redaction Limitations**:
+> - Static plan inspection verifies declared literal URLs. It cannot guarantee detection of dynamically concatenated targets, runtime environment overrides, or server-side HTTP redirects. Operators remain responsible for the endpoints their scans target.
+> - Active scans fail closed whenever the target scope cannot be statically verified (such as omitted or dynamic URLs) unless `--allow-external` is provided.
+> - Regex-based credential redaction in terminal cards provides best-effort defense-in-depth against accidental terminal leakage. It does not replace comprehensive secret management.
+
 ## Test Reports & Artifacts
 
 All test runs generate artifacts in `goodgirl-results/` (gitignored):

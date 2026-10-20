@@ -73,3 +73,8 @@ GoodGirl CLI includes safety guardrails:
    ```bash
    pnpm qa security baseline --fail-on High
    ```
+
+5. **Safety & Redaction Limitations**:
+   - Static plan inspection checks literal URLs within plan text. It cannot guarantee detection of runtime redirects, dynamic URL concatenation, or server-side routing. Operators remain responsible for the endpoints their scans target.
+   - Active security scanning fails closed whenever the target scope cannot be statically verified (e.g. omitted or dynamically computed URLs), requiring explicit `--allow-external` authorization to proceed.
+   - Regex-based credential redaction in terminal cards provides best-effort defense-in-depth against accidental terminal leakage. It is not an absolute cryptographic data sanitization guarantee.

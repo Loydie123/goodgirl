@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { parse } from "yaml";
 import { DEFAULT_ALLOWED_HOSTS } from "@goodgirl/shared";
 import type {
   SecurityTargetSafetyOptions,
@@ -47,9 +48,27 @@ export function isAllowedHost(
  * Inspects a ZAP Automation Framework plan content to determine if an activeScan job is declared.
  */
 export function containsActiveScanJob(content: string): boolean {
-  // Checks for: "type: activeScan" or "type: 'activeScan'" or 'type: "activeScan"'
+  // Checks for regex pattern: "type: activeScan" or "type: 'activeScan'" or 'type: "activeScan"'
   const activeScanRegex = /type:\s*['"]?activeScan['"]?/i;
-  return activeScanRegex.test(content);
+  if (activeScanRegex.test(content)) {
+    return true;
+  }
+  try {
+    const doc = parse(content);
+    if (doc && Array.isArray(doc.jobs)) {
+      for (const job of doc.jobs) {
+        if (typeof job === "object" && job !== null) {
+          const jobType = String(job.type ?? "").toLowerCase();
+          if (jobType === "activescan" || jobType === "ascan") {
+            return true;
+          }
+        }
+      }
+    }
+  } catch {
+    // Fall back to regex result
+  }
+  return false;
 }
 
 /**
@@ -80,6 +99,20 @@ export function validateSecurityPlanSafety(
         `Active scanning sends potentially disruptive or intrusive request payloads to discover vulnerabilities.\n` +
         `To run active security scans, explicit authorization is required.\n` +
         `Provide the "--active" / "--allow-active" CLI flag or enable "security.allowActive: true" in goodgirl.config.ts.`,
+    };
+  }
+
+  // 1b. Fail closed on active scans when target scope cannot be reliably validated
+  if (activeScanDetected && urls.length === 0 && !options.allowExternal) {
+    return {
+      safe: false,
+      targets: urls,
+      blockedTargets: [],
+      activeScanDetected: true,
+      reason:
+        `Security Notice: Active security scanning target scope cannot be reliably validated statically (no literal target URLs found).\n` +
+        `When target URLs are dynamically defined, environment-driven, or omitted from the plan, GoodGirl fails closed to prevent accidental active attacks against non-local environments.\n` +
+        `To authorize active scanning against dynamic or unverified target scopes, provide the "--allow-external" flag or enable "security.allowExternal: true" in goodgirl.config.ts.`,
     };
   }
 

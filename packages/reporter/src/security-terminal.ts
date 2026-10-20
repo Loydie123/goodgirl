@@ -9,6 +9,10 @@ function formatMs(ms?: number): string {
 
 /**
  * Redacts potential credentials, authorization tokens, and API keys from text.
+ *
+ * NOTE: Regex-based redaction provides best-effort defense-in-depth to mask
+ * common authorization tokens in terminal output. It does not provide an
+ * absolute cryptographic sanitization guarantee for arbitrary payloads.
  */
 export function redactSensitiveData(text: string): string {
   return text

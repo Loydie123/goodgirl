@@ -85,4 +85,32 @@ describe("OWASP ZAP Safety Controls", () => {
     expect(result.safe).toBe(true);
     expect(result.activeScanDetected).toBe(true);
   });
+
+  it("fails closed on active scan when target scope cannot be statically verified", () => {
+    // Plan with activeScan but no literal URLs (e.g. target dynamically provided via env or omitted)
+    const plan = `
+      env:
+        contexts:
+          - name: "dynamic-context"
+      jobs:
+        - type: activeScan
+    `;
+    const result = validateSecurityPlanSafety(plan, { allowActive: true, allowExternal: false });
+    expect(result.safe).toBe(false);
+    expect(result.activeScanDetected).toBe(true);
+    expect(result.reason).toContain("Active security scanning target scope cannot be reliably validated statically");
+  });
+
+  it("permits active scan with dynamic or omitted URLs when allowExternal is explicitly true", () => {
+    const plan = `
+      env:
+        contexts:
+          - name: "dynamic-context"
+      jobs:
+        - type: activeScan
+    `;
+    const result = validateSecurityPlanSafety(plan, { allowActive: true, allowExternal: true });
+    expect(result.safe).toBe(true);
+    expect(result.activeScanDetected).toBe(true);
+  });
 });
