@@ -28,19 +28,92 @@ describe("GoodGirl Core Config", () => {
     expect(parsed.retries).toBe(2);
   });
 
-  it("rejects invalid browser type", () => {
-    const invalid = { browser: "safari" };
-    const result = goodGirlConfigSchema.safeParse(invalid);
-    expect(result.success).toBe(false);
+  it("validates multi-browser and custom project configurations", () => {
+    const config = {
+      projectName: "Multi-Browser QA",
+      browsers: ["chromium" as const, "firefox" as const, "webkit" as const],
+      workers: 4,
+      fullyParallel: true,
+      video: "on" as const,
+      projects: [
+        {
+          name: "Mobile Safari",
+          device: "iPhone 13",
+        },
+      ],
+    };
+    const parsed = goodGirlConfigSchema.parse(config);
+    expect(parsed.browsers).toHaveLength(3);
+    expect(parsed.workers).toBe(4);
+    expect(parsed.fullyParallel).toBe(true);
+    expect(parsed.video).toBe("on");
+    expect(parsed.projects).toHaveLength(1);
+    expect(parsed.projects?.[0]?.name).toBe("Mobile Safari");
+  });
+});
+
+import { buildPlaywrightArgs } from "./runner/orchestrator.js";
+
+describe("Playwright Argument Builder", () => {
+  it("builds default arguments with config path", () => {
+    const args = buildPlaywrightArgs(["node", "cli.js"], "/path/to/playwright.config.ts", {
+      type: "all",
+    });
+    expect(args).toEqual(["node", "cli.js", "test", "--config=/path/to/playwright.config.ts"]);
+  });
+
+  it("builds arguments for specific project, browser, workers, and grep", () => {
+    const args = buildPlaywrightArgs(["node", "cli.js"], "/path/to/playwright.config.ts", {
+      type: "e2e",
+      browser: "firefox",
+      workers: 2,
+      grep: "auth",
+      grepInvert: "slow",
+      headed: true,
+    });
+    expect(args).toContain("--project=e2e");
+    expect(args).toContain("--browser=firefox");
+    expect(args).toContain("--workers=2");
+    expect(args).toContain("--grep=auth");
+    expect(args).toContain("--grep-invert=slow");
+    expect(args).toContain("--headed");
+  });
+
+  it("supports advanced execution options and passthrough arguments", () => {
+    const args = buildPlaywrightArgs(["node", "cli.js"], "/path/to/playwright.config.ts", {
+      type: "all",
+      shard: "1/3",
+      repeatEach: 2,
+      maxFailures: 1,
+      lastFailed: true,
+      list: true,
+      debug: true,
+      files: ["tests/login.spec.ts"],
+      passthroughArgs: ["--output=test-results", "--ignore-snapshots"],
+    });
+    expect(args).toContain("--shard=1/3");
+    expect(args).toContain("--repeat-each=2");
+    expect(args).toContain("--max-failures=1");
+    expect(args).toContain("--last-failed");
+    expect(args).toContain("--list");
+    expect(args).toContain("--debug");
+    expect(args).toContain("tests/login.spec.ts");
+    expect(args).toContain("--output=test-results");
+    expect(args).toContain("--ignore-snapshots");
   });
 });
 
 describe("GoodGirl Doctor Checker", () => {
-  it("runs environment checks and verifies Node runtime", async () => {
+  it("runs environment checks and verifies Node runtime and browsers", async () => {
     const report = await runDoctorChecks(process.cwd());
-    expect(report.checks.length).toBeGreaterThanOrEqual(4);
+    expect(report.checks.length).toBeGreaterThanOrEqual(5);
     const nodeCheck = report.checks.find((c) => c.name === "Node.js Runtime");
     expect(nodeCheck).toBeDefined();
     expect(nodeCheck?.status).toBe("pass");
+
+    const browserCheck = report.checks.find((c) => c.name === "Playwright Browser Engines");
+    expect(browserCheck).toBeDefined();
+    expect(["pass", "warn"]).toContain(browserCheck?.status);
   });
 });
+

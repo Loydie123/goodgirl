@@ -7,7 +7,10 @@ import { loadGoodGirlConfig } from "../config/loader.js";
 
 const require = createRequire(import.meta.url);
 
-export async function runDoctorChecks(cwd: string = process.cwd()): Promise<DoctorReport> {
+export async function runDoctorChecks(
+  cwd: string = process.cwd(),
+  customConfigPath?: string,
+): Promise<DoctorReport> {
   const checks: DoctorCheckResult[] = [];
 
   // 1. Node.js Version Check (Requirement: >= 22.0.0)
@@ -78,6 +81,69 @@ export async function runDoctorChecks(cwd: string = process.cwd()): Promise<Doct
       status: "pass",
       message: "Playwright package is installed and resolvable",
     });
+
+    // Detect browser binaries in standard cache directories
+    const home = process.env.HOME || process.env.USERPROFILE || "";
+    const localAppData = process.env.LOCALAPPDATA || "";
+    const candidateDirs = [
+      join(localAppData, "ms-playwright"),
+      join(home, "Library", "Caches", "ms-playwright"),
+      join(home, ".cache", "ms-playwright"),
+    ];
+
+    let cacheDir: string | undefined;
+    for (const d of candidateDirs) {
+      if (d && existsSync(d)) {
+        cacheDir = d;
+        break;
+      }
+    }
+
+    let chromium = false;
+    let firefox = false;
+    let webkit = false;
+
+    if (cacheDir) {
+      try {
+        const { readdirSync } = await import("node:fs");
+        const entries = readdirSync(cacheDir);
+        chromium = entries.some((e) => e.startsWith("chromium"));
+        firefox = entries.some((e) => e.startsWith("firefox"));
+        webkit = entries.some((e) => e.startsWith("webkit"));
+      } catch {
+        // Continue
+      }
+    }
+
+    const installed: string[] = [];
+    if (chromium) installed.push("Chromium");
+    if (firefox) installed.push("Firefox");
+    if (webkit) installed.push("WebKit");
+
+    if (installed.length > 0) {
+      checks.push({
+        name: "Playwright Browser Engines",
+        status: "pass",
+        message: `Installed browsers: ${installed.join(", ")}`,
+        details:
+          installed.length < 3
+            ? `To install additional browsers for multi-browser testing, run: pnpm exec playwright install ${[
+                !chromium ? "chromium" : null,
+                !firefox ? "firefox" : null,
+                !webkit ? "webkit" : null,
+              ]
+                .filter(Boolean)
+                .join(" ")}`
+            : undefined,
+      });
+    } else {
+      checks.push({
+        name: "Playwright Browser Engines",
+        status: "warn",
+        message: "No Playwright browser binaries detected in cache.",
+        details: "Run `pnpm exec playwright install chromium` to install browser binaries.",
+      });
+    }
   } catch {
     checks.push({
       name: "Playwright Test Package",
@@ -88,7 +154,7 @@ export async function runDoctorChecks(cwd: string = process.cwd()): Promise<Doct
 
   // 5. Configuration Validation
   try {
-    const { config, configPath } = await loadGoodGirlConfig(cwd);
+    const { config, configPath } = await loadGoodGirlConfig(cwd, customConfigPath);
     if (configPath) {
       checks.push({
         name: "Configuration File",

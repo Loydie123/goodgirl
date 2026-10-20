@@ -11,6 +11,12 @@ function applyEnvironmentOverrides(rawConfig: Record<string, unknown>): Record<s
   if (process.env.GOODGIRL_BROWSER) {
     merged.browser = process.env.GOODGIRL_BROWSER;
   }
+  if (process.env.GOODGIRL_BROWSERS) {
+    const list = process.env.GOODGIRL_BROWSERS.split(",").map((s) => s.trim()).filter(Boolean);
+    if (list.length > 0) {
+      merged.browsers = list;
+    }
+  }
   if (process.env.GOODGIRL_TIMEOUT) {
     const parsed = Number.parseInt(process.env.GOODGIRL_TIMEOUT, 10);
     if (!Number.isNaN(parsed)) {
@@ -22,6 +28,24 @@ function applyEnvironmentOverrides(rawConfig: Record<string, unknown>): Record<s
     if (!Number.isNaN(parsed)) {
       merged.retries = parsed;
     }
+  }
+  if (process.env.GOODGIRL_WORKERS) {
+    const parsed = Number.parseInt(process.env.GOODGIRL_WORKERS, 10);
+    merged.workers = Number.isNaN(parsed) ? process.env.GOODGIRL_WORKERS : parsed;
+  }
+  if (process.env.GOODGIRL_FULLY_PARALLEL) {
+    merged.fullyParallel =
+      process.env.GOODGIRL_FULLY_PARALLEL === "true" ||
+      process.env.GOODGIRL_FULLY_PARALLEL === "1";
+  }
+  if (process.env.GOODGIRL_VIDEO) {
+    merged.video = process.env.GOODGIRL_VIDEO;
+  }
+  if (process.env.GOODGIRL_TRACE) {
+    merged.trace = process.env.GOODGIRL_TRACE;
+  }
+  if (process.env.GOODGIRL_SCREENSHOTS) {
+    merged.screenshots = process.env.GOODGIRL_SCREENSHOTS;
   }
 
   return merged;

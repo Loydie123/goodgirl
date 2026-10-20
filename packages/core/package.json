@@ -18,6 +18,7 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
+    "@goodgirl/playwright": "workspace:*",
     "@goodgirl/reporter": "workspace:*",
     "@goodgirl/shared": "workspace:*",
     "@playwright/test": "^1.48.2",
