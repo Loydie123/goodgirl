@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Test and Report artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+goodgirl-results/
+coverage/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Temporary files and doctor probe directories
+*.tmp
+.goodgirl-doctor-probe/
+*.log
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# Turborepo
+.turbo/
