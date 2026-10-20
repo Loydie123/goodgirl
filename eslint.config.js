@@ -29,6 +29,16 @@ export default tsPlugin.config(
     },
   },
   {
+    files: ["examples/k6/**/*.js"],
+    languageOptions: {
+      globals: {
+        __ENV: "readonly",
+        __VU: "readonly",
+        __ITER: "readonly",
+      },
+    },
+  },
+  {
     ignores: [
       "**/dist/**",
       "**/node_modules/**",
