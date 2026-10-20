@@ -11,6 +11,7 @@ export interface PlaywrightTestResult {
 }
 
 export interface PlaywrightTest {
+  projectName?: string;
   status: "expected" | "unexpected" | "flaky" | "skipped";
   results: PlaywrightTestResult[];
 }

@@ -22,6 +22,9 @@ export function printTerminalSummary(summary: TestSummary): void {
   console.log(`  ${pc.bold("Overall Status:")}  ${statusLabel}`);
   console.log(`  ${pc.bold("Total Tests:")}     ${summary.total}`);
   console.log(`  ${pc.bold("Passed:")}          ${summary.passed > 0 ? pc.green(summary.passed) : summary.passed}`);
+  if (summary.flaky > 0) {
+    console.log(`  ${pc.bold("Flaky (Retried):")} ${pc.yellow(summary.flaky)}`);
+  }
   console.log(`  ${pc.bold("Failed:")}          ${summary.failed > 0 ? pc.red(summary.failed) : summary.failed}`);
   console.log(`  ${pc.bold("Skipped:")}         ${summary.skipped > 0 ? pc.yellow(summary.skipped) : summary.skipped}`);
   console.log(`  ${pc.bold("Duration:")}        ${formatDuration(summary.durationMs)}`);
@@ -37,7 +40,8 @@ export function printTerminalSummary(summary: TestSummary): void {
     console.log(line);
     console.log(` ${pc.red(pc.bold("Failure Details:"))}`);
     for (const fail of summary.failures) {
-      console.log(`  ${pc.red("✖")} ${pc.bold(fail.title)}${fail.location ? pc.dim(` (${fail.location})`) : ""}`);
+      const projTag = fail.project ? pc.cyan(`[${fail.project}] `) : "";
+      console.log(`  ${pc.red("✖")} ${projTag}${pc.bold(fail.title)}${fail.location ? pc.dim(` (${fail.location})`) : ""}`);
       if (fail.error) {
         const indented = fail.error
           .split("\n")

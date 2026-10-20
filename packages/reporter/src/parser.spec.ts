@@ -78,4 +78,71 @@ describe("Playwright JSON report parser", () => {
       unlinkSync(tempPath);
     }
   });
+
+  it("parses multi-project reports and flaky tests accurately", () => {
+    const mockReport = {
+      config: {},
+      errors: [],
+      stats: {
+        startTime: "2026-10-20T00:00:00.000Z",
+        duration: 3400,
+        expected: 1,
+        unexpected: 1,
+        flaky: 1,
+        skipped: 0,
+      },
+      suites: [
+        {
+          title: "login.spec.ts",
+          file: "tests/login.spec.ts",
+          specs: [
+            {
+              title: "cross-browser authentication",
+              ok: true,
+              tests: [
+                {
+                  projectName: "chromium",
+                  status: "expected",
+                  results: [{ status: "passed", duration: 150, errors: [] }],
+                },
+                {
+                  projectName: "firefox",
+                  status: "flaky",
+                  results: [
+                    { status: "failed", duration: 120, errors: [{ message: "Timeout" }] },
+                    { status: "passed", duration: 110, errors: [] },
+                  ],
+                },
+                {
+                  projectName: "webkit",
+                  status: "unexpected",
+                  results: [
+                    { status: "failed", duration: 180, errors: [{ message: "Element not found" }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const tempPath = join(tmpdir(), `goodgirl-flaky-${Date.now()}.json`);
+    writeFileSync(tempPath, JSON.stringify(mockReport), "utf-8");
+
+    try {
+      const summary = parsePlaywrightJsonReport(tempPath);
+      expect(summary.total).toBe(3);
+      expect(summary.passed).toBe(2); // 1 expected + 1 flaky passed
+      expect(summary.flaky).toBe(1);
+      expect(summary.failed).toBe(1);
+      expect(summary.success).toBe(false);
+      expect(summary.failures).toHaveLength(1);
+      expect(summary.failures[0]?.title).toBe("cross-browser authentication");
+      expect(summary.failures[0]?.project).toBe("webkit");
+      expect(summary.failures[0]?.error).toContain("Element not found");
+    } finally {
+      unlinkSync(tempPath);
+    }
+  });
 });

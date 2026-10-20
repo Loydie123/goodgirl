@@ -40,6 +40,7 @@ export function parsePlaywrightJsonReport(
       total: 0,
       passed: 0,
       failed: 0,
+      flaky: 0,
       skipped: 0,
       durationMs: 0,
       success: false,
@@ -62,6 +63,7 @@ export function parsePlaywrightJsonReport(
       total: 0,
       passed: 0,
       failed: 0,
+      flaky: 0,
       skipped: 0,
       durationMs: 0,
       success: false,
@@ -84,6 +86,7 @@ export function parsePlaywrightJsonReport(
       total: 0,
       passed: 0,
       failed: 0,
+      flaky: 0,
       skipped: 0,
       durationMs: 0,
       success: false,
@@ -119,34 +122,43 @@ export function parsePlaywrightJsonReport(
 
   let passed = 0;
   let failed = 0;
+  let flaky = 0;
   let skipped = 0;
 
   for (const spec of allSpecs) {
-    const isOk = spec.ok;
-    const test = spec.tests[0];
-    const status = test?.status;
+    const tests = spec.tests && spec.tests.length > 0 ? spec.tests : [];
+    for (const test of tests) {
+      const status = test.status;
+      const projectName = test.projectName;
 
-    if (status === "skipped") {
-      skipped++;
-    } else if (isOk) {
-      passed++;
-    } else {
-      failed++;
-      const lastResult = test?.results[test.results.length - 1];
-      const errorMsg =
-        lastResult?.errors && lastResult.errors.length > 0
-          ? cleanErrorMessage(lastResult.errors[0]!)
-          : "Test failed without explicit message";
+      if (status === "skipped") {
+        skipped++;
+      } else if (status === "flaky") {
+        flaky++;
+        passed++;
+      } else if (status === "expected" || (!status && spec.ok)) {
+        passed++;
+      } else {
+        failed++;
+        const lastResult = test.results && test.results.length > 0
+          ? test.results[test.results.length - 1]
+          : undefined;
+        const errorMsg =
+          lastResult?.errors && lastResult.errors.length > 0
+            ? cleanErrorMessage(lastResult.errors[0]!)
+            : "Test failed without explicit message";
 
-      const loc = spec.file
-        ? `${spec.file}${spec.line ? `:${spec.line}` : ""}`
-        : undefined;
+        const loc = spec.file
+          ? `${spec.file}${spec.line ? `:${spec.line}` : ""}`
+          : undefined;
 
-      failures.push({
-        title: spec.title,
-        location: loc,
-        error: errorMsg,
-      });
+        failures.push({
+          title: spec.title,
+          project: projectName,
+          location: loc,
+          error: errorMsg,
+        });
+      }
     }
   }
 
@@ -158,6 +170,7 @@ export function parsePlaywrightJsonReport(
     total,
     passed,
     failed,
+    flaky,
     skipped,
     durationMs,
     success,
