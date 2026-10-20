@@ -140,5 +140,32 @@ describe("GoodGirl Doctor Checker", () => {
     const k6Check = report.checks.find((c) => c.name === "k6 Binary Executable");
     expect(k6Check).toBeDefined();
   });
+
+  it("validates security configuration schema", () => {
+    const parsed = goodGirlConfigSchema.parse({
+      security: {
+        dockerImage: "ghcr.io/zaproxy/zaproxy:stable",
+        allowedTargets: ["127.0.0.1", "localhost"],
+        allowExternal: true,
+        failOnRisk: "Medium",
+        defaultTimeoutSeconds: 600,
+      },
+    });
+    expect(parsed.security).toBeDefined();
+    expect(parsed.security?.dockerImage).toBe("ghcr.io/zaproxy/zaproxy:stable");
+    expect(parsed.security?.failOnRisk).toBe("Medium");
+    expect(parsed.security?.allowExternal).toBe(true);
+    expect(parsed.security?.defaultTimeoutSeconds).toBe(600);
+  });
+
+  it("runs security doctor checks specifically for OWASP ZAP", async () => {
+    const { runSecurityDoctorChecks } = await import("./doctor/checker.js");
+    const report = await runSecurityDoctorChecks(process.cwd());
+    expect(report.checks.length).toBeGreaterThanOrEqual(4);
+    const zapCheck = report.checks.find(
+      (c) => c.name.includes("ZAP") || c.name.includes("Docker"),
+    );
+    expect(zapCheck).toBeDefined();
+  });
 });
 

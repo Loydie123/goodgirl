@@ -7,12 +7,15 @@ import {
   getResultsPaths,
   type LoadRunOptions,
   type LoadRunSummary,
+  type SecurityRunOptions,
+  type SecurityRunSummary,
   type TestRunOptions,
   type TestSummary,
 } from "@goodgirl/shared";
 import { parsePlaywrightJsonReport } from "@goodgirl/reporter";
 import { startFixtureServer, type FixtureServerInstance } from "@goodgirl/playwright";
 import { runK6Test } from "@goodgirl/k6";
+import { runZapAutomation } from "@goodgirl/zap";
 import { loadGoodGirlConfig } from "../config/loader.js";
 import { runSubprocess, type SubprocessResult } from "./subprocess.js";
 
@@ -337,6 +340,54 @@ export async function runLoadTest(
 
   try {
     return await runK6Test(options, config.k6);
+  } finally {
+    if (fixtureServer) {
+      await fixtureServer.close().catch(() => {});
+    }
+  }
+}
+
+/**
+ * Executes an OWASP ZAP security scan using GoodGirl configuration.
+ * Automatically ensures local fixture server is available if targeting localhost.
+ */
+export async function runSecurityTest(
+  options: SecurityRunOptions,
+): Promise<SecurityRunSummary> {
+  const cwd = options.cwd ? resolve(options.cwd) : process.cwd();
+  const { config } = await loadGoodGirlConfig(cwd, options.configPath);
+
+  const mergedOptions: SecurityRunOptions = {
+    ...options,
+    cwd,
+    allowExternal: options.allowExternal ?? config.security?.allowExternal ?? config.security?.allowExternalTargets ?? false,
+    failOnRisk: options.failOnRisk ?? config.security?.failOnRisk,
+    dockerImage: options.dockerImage ?? config.security?.dockerImage,
+    zapPath: options.zapPath ?? config.security?.zapPath,
+    timeoutSeconds: options.timeoutSeconds ?? config.security?.defaultTimeoutSeconds,
+  };
+
+  let fixtureServer: FixtureServerInstance | undefined;
+  const target = options.target ?? "http://127.0.0.1:4173";
+  const isLocalTarget =
+    target.includes("4173") ||
+    target.includes("127.0.0.1") ||
+    target.includes("localhost") ||
+    (options.planPath ? options.planPath.includes("baseline") || options.planPath.includes("api") : false);
+
+  if (isLocalTarget) {
+    const isListening = await isPortListening(4173);
+    if (!isListening) {
+      try {
+        fixtureServer = await startFixtureServer(4173);
+      } catch {
+        // Continue if port is in use or cannot be bound
+      }
+    }
+  }
+
+  try {
+    return await runZapAutomation(mergedOptions);
   } finally {
     if (fixtureServer) {
       await fixtureServer.close().catch(() => {});

@@ -22,6 +22,7 @@
     "@goodgirl/playwright": "workspace:*",
     "@goodgirl/reporter": "workspace:*",
     "@goodgirl/shared": "workspace:*",
+    "@goodgirl/zap": "workspace:*",
     "@playwright/test": "^1.48.2",
     "cross-spawn": "^7.0.6",
     "jiti": "^2.4.0",

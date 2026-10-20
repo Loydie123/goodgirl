@@ -41,6 +41,19 @@ export const k6ConfigSchema = z
   })
   .optional();
 
+export const securityConfigSchema = z
+  .object({
+    dockerImage: z.string().optional(),
+    zapPath: z.string().optional(),
+    allowExternal: z.boolean().default(false),
+    allowExternalTargets: z.boolean().default(false),
+    allowedTargets: z.array(z.string()).default([]),
+    failOnRisk: z.enum(["High", "Medium", "Low", "Informational", "never"]).default("High"),
+    defaultTimeoutSeconds: z.number().int().positive().default(300),
+    resultsDir: z.string().optional(),
+  })
+  .optional();
+
 export const goodGirlConfigSchema = z.object({
   projectName: z.string().default("GoodGirl QA Project"),
   baseURL: z.string().default(DEFAULT_BASE_URL),
@@ -62,6 +75,7 @@ export const goodGirlConfigSchema = z.object({
   resultsDir: z.string().default(DEFAULT_RESULTS_DIR),
   webServer: webServerSchema,
   k6: k6ConfigSchema,
+  security: securityConfigSchema,
   use: z.record(z.unknown()).optional(),
 });
 
