@@ -29,6 +29,12 @@
     "unarchive",
     "untracked",
     "Vitest",
-    "vitest"
+    "vitest",
+    "zaproxy",
+    "Zaproxy",
+    "WASC",
+    "wasc",
+    "clickjacking",
+    "autorun"
   ]
 }

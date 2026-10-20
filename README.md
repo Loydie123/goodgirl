@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6)](https://www.typescriptlang.org)
 [![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220)](https://pnpm.io)
 
-An all-in-one, CLI-first QA automation toolkit for end-to-end browser, REST API, and high-performance load testing. Engineered with TypeScript, pnpm Workspaces, Turborepo, Playwright Test, and native Grafana k6 integration for cross-platform reliability on Windows (PowerShell), macOS, and Linux.
+An all-in-one, CLI-first QA automation toolkit for end-to-end browser, REST API, high-performance load, and automated application security testing. Engineered with TypeScript, pnpm Workspaces, Turborepo, Playwright Test, native Grafana k6, and native OWASP ZAP Automation Framework integration for cross-platform reliability on Windows (PowerShell), macOS, and Linux.
 
 ```text
    ____                 _     ____   _          _ 
@@ -22,13 +22,16 @@ An all-in-one, CLI-first QA automation toolkit for end-to-end browser, REST API,
 - **CLI-First Architecture**: Run tests directly from the terminal or CI runners without heavy GUI wrappers.
 - **Deep Playwright Integration**: Direct access to Playwright Test features: Chromium, Firefox, WebKit, mobile emulation, step inspector, UI mode, tracing, and codegen.
 - **Deep Grafana k6 Integration**: Native k6 engine integration executing real virtual user load scenarios, latency percentiles (`avg`, `med`, `p90`, `p95`, `p99`), error rates, request throughput, and thresholds.
+- **Deep OWASP ZAP Integration**: Native ZAP Automation Framework (AF) execution via official Docker containers (`ghcr.io/zaproxy/zaproxy:bare` / `stable`) or local binary installations (`zap.sh` / `zap.bat`).
 - **Performance Scenarios & Presets**: Out-of-the-box support for smoke, load, stress, spike, soak, and arrival-rate traffic shapes with ramping stages.
+- **Security Baseline & OpenAPI Scans**: Automated passive security analysis, OpenAPI 3.0 specification endpoint imports, and authenticated scan templates.
 - **Cross-Browser & Matrix Testing**: Configure multi-browser projects, custom device viewports, and parallel worker pools.
-- **Safety & Target Guardrails**: Safe-by-default execution restricting traffic to local test benches (`localhost`, `127.0.0.1`) unless explicitly unlocked via `--allow-external`.
+- **Safety & Target Guardrails**: Safe-by-default execution restricting traffic to local test benches (`localhost`, `127.0.0.1`) unless explicitly unlocked via `--allow-external`. Active attack jobs (`activeScan`) strictly require explicit `--active` authorization.
+- **Credential & Token Redaction**: Terminal reporting automatically masks sensitive tokens (`Bearer ***`, `Basic ***`), passwords, and API keys.
 - **Interactive Terminal UI**: Optional `@clack/prompts` menu for exploratory test runs and diagnostics.
-- **Tri-Discipline Testing**: Execute browser user journeys, REST API contract checks, and high-performance load tests with unified tooling.
-- **Debugging & Telemetry**: Built-in trace viewing (`goodgirl trace`), test recorder (`goodgirl codegen`), interactive report server (`goodgirl report --open`), and flaky test tracking.
-- **Argument Passthrough**: Forward raw native Playwright and k6 flags directly using `--` (e.g. `goodgirl test all -- --workers=1` or `goodgirl load run script.js -- --http-debug`).
+- **Four-Discipline Testing**: Execute browser user journeys, REST API contract checks, high-performance load tests, and security scans with unified tooling.
+- **Debugging & Telemetry**: Built-in trace viewing (`goodgirl trace`), test recorder (`goodgirl codegen`), interactive report servers, and flaky test tracking.
+- **Argument Passthrough**: Forward raw native Playwright, k6, and ZAP flags directly using `--` (e.g. `goodgirl test all -- --workers=1` or `goodgirl load run script.js -- --http-debug`).
 - **Cross-Platform Native**: Tested and validated on Windows PowerShell, macOS, and Linux.
 - **Hermetic Fixture Server**: Built-in HTTP test bench (`127.0.0.1:4173`) for running verification suites offline.
 
@@ -38,10 +41,10 @@ An all-in-one, CLI-first QA automation toolkit for end-to-end browser, REST API,
 |:---|:---|:---|:---:|
 | **Playwright** | Functional E2E & REST API | Multi-browser matrix (Chromium, Firefox, WebKit), device emulation, route mocking, traces, video, codegen | **Implemented (Phase 2)** |
 | **Grafana k6** | Performance & Load | Native k6 execution, virtual user load simulation, latency percentiles (p90, p95, p99), checks, thresholds, safety guardrails | **Implemented (Phase 3)** |
-| **OWASP ZAP** | Application Security | Automated vulnerability scanning, baseline proxy inspection | *Planned (Phase 4)* |
+| **OWASP ZAP** | Application Security | Official Automation Framework, baseline passive scans, OpenAPI imports, authenticated scans, risk gating, token redaction | **Implemented (Phase 4)** |
 
 > [!NOTE]
-> Phase 1 & 2 provide advanced **Playwright** capabilities: cross-browser execution (Chromium, Firefox, WebKit), device emulation presets, debug inspector, interactive UI mode, trace viewer, codegen, network mocking, and argument passthrough. Phase 3 introduces deep **Grafana k6** integration for high-performance load, stress, spike, soak, and custom metric testing with threshold enforcement and safety controls. OWASP ZAP integration is planned for Phase 4.
+> GoodGirl CLI integrates three testing engines: **Playwright** for browser and API functional journeys, **Grafana k6** for high-concurrency performance and stress workloads, and **OWASP ZAP** for automated baseline and OpenAPI application security scanning. All three engines execute with safe-by-default localhost guardrails and provide rich terminal reporting.
 
 ## Quick Start
 
@@ -65,13 +68,18 @@ pnpm exec playwright install chromium firefox webkit
 winget install k6 --source winget
 # (Alternative: choco install k6)
 
-# 6. Run environment diagnostics
+# 6. Setup OWASP ZAP (Optional for security scanning via Docker)
+docker pull ghcr.io/zaproxy/zaproxy:bare
+
+# 7. Run environment diagnostics
 pnpm qa doctor
 pnpm qa load doctor
+pnpm qa security doctor
 
-# 7. Execute smoke tests
+# 8. Execute smoke tests
 pnpm qa test all
 pnpm qa load run examples/k6/smoke.js
+pnpm qa security baseline --target http://127.0.0.1:4173
 ```
 
 ### macOS & Linux
@@ -98,13 +106,18 @@ brew install k6
 # See: https://grafana.com/docs/k6/latest/set-up/install-k6/
 sudo apt-get install k6
 
-# 6. Run environment diagnostics
+# 6. Setup OWASP ZAP (Optional for security scanning via Docker)
+docker pull ghcr.io/zaproxy/zaproxy:bare
+
+# 7. Run environment diagnostics
 pnpm qa doctor
 pnpm qa load doctor
+pnpm qa security doctor
 
-# 7. Execute smoke tests
+# 8. Execute smoke tests
 pnpm qa test all
 pnpm qa load run examples/k6/smoke.js
+pnpm qa security baseline --target http://127.0.0.1:4173
 ```
 
 ## Usage
@@ -120,13 +133,16 @@ pnpm qa
 ```text
 GoodGirl CLI — Interactive QA Menu
 ┌  Select an action:
-│  ● Run E2E Tests       (Execute end-to-end browser tests)
-│  ○ Run API Tests       (Execute API endpoint test suite)
-│  ○ Run All Tests       (Execute full E2E and API test suite)
-│  ○ Run Load Tests      (Execute Grafana k6 performance tests)
-│  ○ Generate Report     (View latest HTML or JSON test report)
-│  ○ Check Environment   (Validate system prerequisites & config)
-│  ○ Exit                (Close GoodGirl CLI)
+│  ● Run E2E Tests          (Execute end-to-end browser tests)
+│  ○ Run API Tests          (Execute API endpoint test suite)
+│  ○ Run All Tests          (Execute full E2E and API test suite)
+│  ○ Run k6 Load Test       (Execute k6 performance smoke workload)
+│  ○ Run ZAP Security Scan  (Execute baseline passive security scan)
+│  ○ Generate Report        (View latest HTML or JSON test report)
+│  ○ Check Environment      (Validate Playwright & system prerequisites)
+│  ○ Check k6 Performance   (Validate Grafana k6 installation & capabilities)
+│  ○ Check OWASP ZAP Engine (Validate OWASP ZAP installation, Docker, and status)
+│  ○ Exit                   (Close GoodGirl CLI)
 └
 ```
 
@@ -201,6 +217,26 @@ pnpm qa load run examples/k6/smoke.js --allow-external
 # Forward raw native k6 arguments directly
 pnpm qa load run examples/k6/smoke.js -- --http-debug="full"
 
+# Run OWASP ZAP security diagnostics
+pnpm qa security doctor
+
+# Run baseline passive security scan against local test bench
+pnpm qa security baseline --target http://127.0.0.1:4173
+
+# Run API security scan using OpenAPI schema
+pnpm qa security api examples/zap/openapi.json --target http://127.0.0.1:4173
+
+# Run custom ZAP Automation Framework (.yaml) plan
+pnpm qa security run examples/zap/baseline.yaml
+
+# Run security scan with risk threshold failure gating
+pnpm qa security baseline --fail-on High
+
+# View or open ZAP security report
+pnpm qa security report
+pnpm qa security report --open
+pnpm qa security report --format json
+
 # View or serve HTML/JSON reports
 pnpm qa report
 pnpm qa report --open
@@ -226,6 +262,11 @@ pnpm qa doctor
 | `goodgirl codegen [url]` | `-b, --browser`, `--device`, `-o, --output` | Launches interactive browser test recorder |
 | `goodgirl load doctor` | `-c, --config <path>` | Diagnoses k6 binary installation, version, runtime features, and workspace permissions |
 | `goodgirl load run <script>` | `--vus`, `--duration`, `--iterations`, `--stage`, `--env`, `--summary-export`, `--json-report`, `--allow-external`, `--raw` | Executes k6 performance script with scenario controls, threshold checks, and metric reporting |
+| `goodgirl security doctor` | `-c, --config <path>` | Diagnoses OWASP ZAP engine, container image, local binary, and results directory |
+| `goodgirl security baseline [target]` | `-t, --target`, `-d, --spider-duration`, `--fail-on`, `--allow-external`, `--raw`, `-c, --config`, `--json-report`, `--html-report` | Executes automated baseline passive security scan with spider crawl |
+| `goodgirl security api [spec]` | `-t, --target`, `-s, --spec`, `--fail-on`, `--allow-external`, `--raw`, `-c, --config`, `--json-report`, `--html-report` | Executes API security scan using OpenAPI / Swagger definition |
+| `goodgirl security run <plan>` | `-t, --target`, `--active`, `--allow-active`, `--fail-on`, `--allow-external`, `--raw`, `-c, --config`, `--json-report`, `--html-report` | Executes custom ZAP Automation Framework plan with active attack protection |
+| `goodgirl security report` | `-f, --format <html\|json>`, `-o, --open`, `-c, --config <path>` | Displays report URL, opens interactive HTML report, or prints JSON findings |
 | `goodgirl report` | `-f, --format <html\|json>`, `-o, --open`, `-c, --config <path>` | Displays report URL, serves interactive HTML viewer, or prints JSON |
 | `goodgirl doctor` | `-c, --config <path>` | Diagnoses Node.js, pnpm, OS, Playwright browsers, config, and permissions |
 | `goodgirl init` | `-f, --force` | Scaffolds `goodgirl.config.ts`, `tests/e2e/`, and `tests/api/` |
@@ -294,6 +335,48 @@ $ goodgirl load run examples/k6/smoke.js
 ────────────────────────────────────────────────────────────
 ```
 
+#### OWASP ZAP Security Scan Suite
+```text
+$ goodgirl security baseline --target http://127.0.0.1:4173
+
+────────────────────────────────────────────────────────────
+ GoodGirl Security Test Summary (OWASP ZAP)
+────────────────────────────────────────────────────────────
+  Target / Plan:     http://127.0.0.1:4173
+  Execution Engine:  Docker (ghcr.io/zaproxy/zaproxy:bare) [Docker version 29.8.2]
+  Overall Status:    ✔ PASSED
+  Risk Threshold:    ✔ Satisfied
+  Scan Duration:     19.62s
+────────────────────────────────────────────────────────────
+ Risk Summary:
+    ● HIGH:           0
+    ● MEDIUM:         3
+    ● LOW:            1
+    ● INFORMATIONAL:  1
+    Total Findings:    5
+────────────────────────────────────────────────────────────
+ Security Findings:
+     MEDIUM  Cross-Domain Misconfiguration [CWE-264]
+      Occurrences: 3
+      Endpoint:    http://host.docker.internal:4173
+     MEDIUM  Content Security Policy (CSP) Header Not Set [CWE-693]
+      Occurrences: 1
+      Endpoint:    http://host.docker.internal:4173
+     MEDIUM  Missing Anti-clickjacking Header [CWE-1021]
+      Occurrences: 1
+      Endpoint:    http://host.docker.internal:4173
+     LOW  X-Content-Type-Options Header Missing [CWE-693]
+      Occurrences: 1
+      Endpoint:    http://host.docker.internal:4173
+     INFO  Modern Web Application [CWE--1]
+      Occurrences: 1
+      Endpoint:    http://host.docker.internal:4173
+────────────────────────────────────────────────────────────
+  HTML Report:       goodgirl-results/zap-report.html
+  JSON Report:       goodgirl-results/zap-report.json
+────────────────────────────────────────────────────────────
+```
+
 ## Configuration
 
 GoodGirl loads configuration from `goodgirl.config.ts` using strict Zod schemas and runtime validation:
@@ -342,6 +425,12 @@ const config: GoodGirlConfig = {
     summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
     resultsDir: "goodgirl-results",
   },
+  security: {
+    allowExternal: false,
+    failOnRisk: "High",
+    dockerImage: "ghcr.io/zaproxy/zaproxy:bare",
+    resultsDir: "goodgirl-results",
+  },
 };
 
 export default config;
@@ -362,7 +451,8 @@ Runtime settings can be overridden via environment variables without modifying c
 | `GOODGIRL_RETRIES` | `retries` | `2` |
 | `GOODGIRL_TRACE` | `trace` | `on`, `off`, `retain-on-failure` |
 | `GOODGIRL_VIDEO` | `video` | `on`, `off`, `retain-on-failure` |
-| `GOODGIRL_ALLOW_EXTERNAL` | `k6.allowExternal` | `true`, `false` |
+| `GOODGIRL_ALLOW_EXTERNAL` | `k6.allowExternal`, `security.allowExternal` | `true`, `false` |
+| `GOODGIRL_SECURITY_FAIL_ON` | `security.failOnRisk` | `High`, `Medium`, `Low` |
 
 ## Writing Tests
 
@@ -528,6 +618,41 @@ To prevent accidental load injection against remote systems or production servic
 
 k6 thresholds evaluate metric criteria (e.g. `p(95)<400ms`, `rate<0.01`). When any threshold fails, GoodGirl propagates k6's native exit code `99`, failing CI pipelines immediately on performance regressions.
 
+### 5. Security Testing (OWASP ZAP)
+
+Execute automated baseline passive scans, OpenAPI specification tests, and authenticated security assessments using the official OWASP ZAP Automation Framework:
+
+```bash
+# 1. Baseline Passive Security Scan
+pnpm qa security baseline --target http://127.0.0.1:4173
+
+# 2. OpenAPI Specification Security Scan
+pnpm qa security api examples/zap/openapi.json --target http://127.0.0.1:4173
+
+# 3. Custom Automation Framework Plan
+pnpm qa security run examples/zap/baseline.yaml
+```
+
+#### Available Security Workloads & Plans
+
+GoodGirl includes ready-to-run ZAP Automation Framework plans under `examples/zap/`:
+
+| File | Type | Purpose |
+|---|---|---|
+| `examples/zap/baseline.yaml` | Baseline Scan | Passive analysis and spider crawl against the target web application |
+| `examples/zap/api-scan.yaml` | OpenAPI Scan | Imports OpenAPI definition to identify all endpoints before passive analysis |
+| `examples/zap/authenticated.yaml` | Authenticated Template | Template using environment variables for bearer tokens and credentials |
+| `examples/zap/openapi.json` | OpenAPI 3.0 Spec | Complete specification of the GoodGirl fixture server endpoints |
+
+#### Safety Guardrails & Access Controls
+
+Security testing introduces operational risks. GoodGirl enforces strict safety guardrails:
+- **Default Localhost Restriction**: By default, security scans only execute against local loopback interfaces (`127.0.0.1`, `localhost`, `::1`, `host.docker.internal`).
+- **External Target Authorization**: Scanning non-local hosts requires explicit operator confirmation via `--allow-external` or setting `security.allowExternal: true` in `goodgirl.config.ts`.
+- **Active Attack Protection**: Invasive active scan jobs (`activeScan`) are strictly blocked unless explicitly authorized via `--active` or `--allow-active`.
+- **Credential & Token Redaction**: Terminal cards automatically scrub authorization headers (`Bearer ***`, `Basic ***`), passwords, and API keys.
+- **Pipeline Failure Gates (`failOnRisk`)**: Break builds when vulnerabilities meet or exceed defined risk levels (e.g. `--fail-on High` or `failOnRisk: "Medium"`).
+
 ## Test Reports & Artifacts
 
 All test runs generate artifacts in `goodgirl-results/` (gitignored):
@@ -539,6 +664,9 @@ goodgirl-results/
 ├── results.json          # Structured Playwright JSON telemetry
 ├── k6-results.json       # Parsed Grafana k6 execution report (latency, RPS, checks)
 ├── k6-summary.json       # Raw Grafana k6 summary-export data
+├── zap-report.html       # Native OWASP ZAP HTML security audit report
+├── zap-report.json       # Raw OWASP ZAP JSON alert findings
+├── zap-results.json      # Structured GoodGirl security execution summary
 ├── trace.zip             # Playwright execution trace archives
 └── test-failed-*.png     # Playwright failure screenshots
 ```
@@ -547,6 +675,7 @@ goodgirl-results/
 - **Inspect Execution Trace**: Run `pnpm qa trace` to open the most recent trace in Playwright Trace Viewer.
 - **Inspect Playwright Telemetry**: Run `pnpm qa report --format json` to inspect or pipe test telemetry.
 - **Inspect Load Test Telemetry**: View formatted terminal output or consume `goodgirl-results/k6-results.json`.
+- **Inspect Security Findings**: Run `pnpm qa security report --open` to view the ZAP HTML report or inspect `goodgirl-results/zap-results.json`.
 
 ## Architecture
 
@@ -558,12 +687,13 @@ flowchart TD
         TRACE_CMD["goodgirl trace"]
         CODEGEN_CMD["goodgirl codegen"]
         LOAD_CMD["goodgirl load run / doctor"]
+        SEC_CMD["goodgirl security baseline / api / run / doctor / report"]
     end
 
     subgraph CORE["Core Orchestration (@goodgirl/core)"]
         ORCH["Test Orchestrator"]
         CFG["Config Loader & Validator (Jiti + Zod)"]
-        DOC["Environment & Diagnostics (doctor / load doctor)"]
+        DOC["Environment & Diagnostics (doctor / load doctor / security doctor)"]
     end
 
     subgraph ENGINES["Testing Engine Integration"]
@@ -583,14 +713,18 @@ flowchart TD
             SAFETY["Safety Controls (Localhost Guardrails)"]
             METRICS["Metrics & Thresholds (avg, med, p90, p95, p99)"]
         end
-        subgraph FUTURE["Planned Integrations"]
-            ZAP["OWASP ZAP (Phase 4)"]
+        subgraph ZAP_ENGINE["OWASP ZAP Engine (Phase 4)"]
+            ZAP_PKG["@goodgirl/zap"]
+            ZAP_EXEC["Official Container / Local Standalone Binary"]
+            AF["Automation Framework (Baseline, OpenAPI, Authenticated)"]
+            SAFETY_ZAP["Safety Controls (Localhost & Active Gate)"]
+            REDACT["Credential & Token Redaction"]
         end
     end
 
     subgraph REPORT["Reporting Layer (@goodgirl/reporter)"]
-        PARSER["Playwright & k6 Telemetry Parsers"]
-        TERM["ANSI Terminal Summary (E2E, API & Load Cards)"]
+        PARSER["Playwright, k6 & ZAP Telemetry Parsers"]
+        TERM["ANSI Terminal Summary (E2E, API, Load & Security Cards)"]
         HTML["Interactive HTML Report Viewer"]
         JSON["Structured JSON Telemetry"]
     end
@@ -600,6 +734,7 @@ flowchart TD
     TRACE_CMD --> ORCH
     CODEGEN_CMD --> ORCH
     LOAD_CMD --> ORCH
+    SEC_CMD --> ORCH
     CFG --> ORCH
     DOC -.-> BIN
 
@@ -618,13 +753,19 @@ flowchart TD
     K6_PKG --> METRICS
     K6_PKG -.-> FIX
 
+    ORCH --> ZAP_PKG
+    ZAP_PKG --> ZAP_EXEC
+    ZAP_PKG --> AF
+    ZAP_PKG --> SAFETY_ZAP
+    ZAP_PKG --> REDACT
+    ZAP_PKG -.-> FIX
+
     PW --> REPORT
     K6_PKG --> REPORT
+    ZAP_PKG --> REPORT
     PARSER --> TERM
     PARSER --> HTML
     PARSER --> JSON
-
-    ORCH -. "Phase 4" .-> ZAP
 ```
 
 ### Monorepo Structure
@@ -638,10 +779,12 @@ goodgirl/
 │   ├── k6/                 # Grafana k6 detector, runner, parser, and safety checks
 │   ├── playwright/         # Playwright runner, config factory, fixture server
 │   ├── reporter/           # Result parser and ANSI terminal summary formatter
-│   └── shared/             # Domain types, constants, path helpers, custom errors
+│   ├── shared/             # Domain types, constants, path helpers, custom errors
+│   └── zap/                # OWASP ZAP Automation Framework detector, runner, parser, safety
 ├── examples/
 │   ├── k6/                 # Runnable k6 performance test scripts and scenarios
-│   └── sample-project/     # Standalone QA sample project with POM and route mocking
+│   ├── sample-project/     # Standalone QA sample project with POM and route mocking
+│   └── zap/                # OWASP ZAP Automation Framework plans and OpenAPI spec
 ├── .github/workflows/      # Cross-platform matrix CI (Windows, macOS, Linux)
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -659,6 +802,8 @@ goodgirl/
 | `pnpm test` | Executes Vitest unit test suites |
 | `pnpm qa` | Runs GoodGirl CLI directly without global installation |
 | `pnpm qa doctor` | Runs environment, browser binary, and configuration diagnostics |
+| `pnpm qa load doctor` | Runs Grafana k6 performance engine diagnostics |
+| `pnpm qa security doctor` | Runs OWASP ZAP security engine diagnostics |
 
 ## Troubleshooting
 
@@ -686,7 +831,7 @@ pnpm qa test all
 - **Phase 1 (Completed)**: Monorepo foundation, Commander CLI, Clack interactive UI, Playwright E2E and API testing, local fixture server, unified reporting, cross-platform CI matrix.
 - **Phase 2 (Completed)**: Cross-browser matrix (Chromium, Firefox, WebKit), device emulation presets, debug inspector, interactive UI mode, trace viewer, codegen, network mocking, Page Object Models, custom fixtures, flaky test reporting, and raw argument passthrough.
 - **Phase 3 (Completed)**: Deep Grafana k6 engine integration for performance, smoke, load, stress, spike, soak, and arrival-rate testing with threshold enforcement, safety guardrails, and rich metric cards.
-- **Phase 4 (Planned)**: OWASP ZAP engine integration for automated security baseline scanning.
+- **Phase 4 (Completed)**: Deep OWASP ZAP engine integration for automated baseline security scans, OpenAPI schema imports, authenticated scanning, risk gating, and credential redaction.
 
 ## Contributing
 
