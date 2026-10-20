@@ -57,14 +57,32 @@ jobs:
       - name: Setup Grafana k6
         uses: grafana/setup-k6-action@v1
 
+      - name: Pull OWASP ZAP Docker image (Linux)
+        if: runner.os == 'Linux'
+        run: docker pull ghcr.io/zaproxy/zaproxy:bare
+
       - name: Run GoodGirl doctor check
         run: pnpm qa doctor
 
       - name: Run GoodGirl load doctor check
         run: pnpm qa load doctor
 
-      - name: Run GoodGirl security doctor check
+      - name: Run GoodGirl security doctor check (Linux)
+        if: runner.os == 'Linux'
         run: pnpm qa security doctor
+
+      - name: Run GoodGirl security doctor check (Windows & macOS)
+        if: runner.os != 'Linux'
+        continue-on-error: true
+        run: pnpm qa security doctor
+
+      - name: Verify GoodGirl security CLI commands
+        run: |
+          pnpm qa security --help
+          pnpm qa security baseline --help
+          pnpm qa security api --help
+          pnpm qa security run --help
+          pnpm qa security report --help
 
       - name: Run GoodGirl test suite
         run: pnpm qa test all
@@ -74,6 +92,21 @@ jobs:
 
       - name: Run k6 smoke performance test
         run: pnpm qa load run examples/k6/smoke.js
+
+      - name: Run OWASP ZAP passive baseline scan (Linux)
+        if: runner.os == 'Linux'
+        run: pnpm qa security baseline --target http://127.0.0.1:4173 --docker-image ghcr.io/zaproxy/zaproxy:bare
+
+      - name: Verify OWASP ZAP report inspection (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pnpm qa security report
+          pnpm qa security report --format json
+
+      - name: Verify ZAP CLI diagnostics fallback (Windows & macOS)
+        if: runner.os != 'Linux'
+        continue-on-error: true
+        run: pnpm qa security baseline --target http://127.0.0.1:4173
 
       - name: Upload test artifacts on failure
         if: failure()
