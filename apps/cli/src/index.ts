@@ -11,6 +11,14 @@ import {
   executeLoadRunCommand,
   type CliLoadRunOptions,
 } from "./commands/load.js";
+import {
+  executeSecurityDoctorCommand,
+  executeSecurityBaselineCommand,
+  executeSecurityApiCommand,
+  executeSecurityRunCommand,
+  executeSecurityReportCommand,
+  type CliSecurityOptions,
+} from "./commands/security.js";
 import { runInteractiveMenu } from "./utils/menu.js";
 import { printBanner } from "./utils/banner.js";
 
@@ -216,6 +224,76 @@ loadCmd
   .option("-c, --config <path>", "Custom configuration file path")
   .action(async (opts: { config?: string }) => {
     const code = await executeLoadDoctorCommand(opts);
+    process.exit(code);
+  });
+
+function applySecurityCommonOptions(cmd: Command): Command {
+  return cmd
+    .option("-t, --target <url>", "Target URL override")
+    .option("--fail-on <risk>", "Fail execution if alerts meet or exceed risk (High, Medium, Low, Informational)")
+    .option("--allow-external", "Authorize security scans against non-local targets", false)
+    .option("--authorized", "Alias for --allow-external", false)
+    .option("--raw", "Stream raw native ZAP stdout/stderr directly", false)
+    .option("-c, --config <path>", "Custom configuration file path")
+    .option("--json-report <path>", "Save structured GoodGirl JSON summary to file")
+    .option("--html-report <path>", "Save native ZAP HTML report to file")
+    .option("--docker-image <image>", "Override ZAP Docker image name")
+    .option("--zap-path <path>", "Override local ZAP executable path");
+}
+
+// Command: goodgirl security
+const securityCmd = program
+  .command("security")
+  .description("OWASP ZAP security testing engine (baseline, api, run, doctor, report)");
+
+applySecurityCommonOptions(
+  securityCmd
+    .command("baseline [target]")
+    .description("Execute an automated baseline passive security scan")
+    .option("-d, --spider-duration <minutes>", "Maximum spider crawl duration in minutes", "2"),
+).action(async (target: string | undefined, opts: CliSecurityOptions) => {
+  const code = await executeSecurityBaselineCommand(target, opts);
+  process.exit(code);
+});
+
+applySecurityCommonOptions(
+  securityCmd
+    .command("api [spec]")
+    .description("Execute an API security scan using OpenAPI / Swagger definition")
+    .option("-s, --spec <fileOrUrl>", "Path or URL to OpenAPI definition file"),
+).action(async (spec: string | undefined, opts: CliSecurityOptions) => {
+  const code = await executeSecurityApiCommand(spec, opts);
+  process.exit(code);
+});
+
+applySecurityCommonOptions(
+  securityCmd
+    .command("run <plan>")
+    .description("Execute a custom ZAP Automation Framework (.yaml) plan")
+    .option("--active", "Explicitly authorize active attacks in plan", false)
+    .option("--allow-active", "Alias for --active", false),
+).action(async (plan: string, opts: CliSecurityOptions) => {
+  const code = await executeSecurityRunCommand(plan, opts);
+  process.exit(code);
+});
+
+securityCmd
+  .command("doctor")
+  .description("Run OWASP ZAP security engine, container, and local binary diagnostics")
+  .option("-c, --config <path>", "Custom configuration file path")
+  .action(async (opts: { config?: string }) => {
+    const code = await executeSecurityDoctorCommand(opts);
+    process.exit(code);
+  });
+
+securityCmd
+  .command("report")
+  .description("Display or inspect latest OWASP ZAP security scan report")
+  .option("-f, --format <format>", "Report format (html | json)", "html")
+  .option("-o, --open", "Open interactive HTML report in default browser", false)
+  .option("-c, --config <path>", "Custom configuration file path")
+  .action(async (opts: { format?: string; open?: boolean; config?: string }) => {
+    const code = await executeSecurityReportCommand(opts);
     process.exit(code);
   });
 

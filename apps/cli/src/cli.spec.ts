@@ -3,6 +3,12 @@ import { executeDoctorCommand } from "./commands/doctor.js";
 import { executeReportCommand } from "./commands/report.js";
 import { executeTraceCommand } from "./commands/trace.js";
 import { executeLoadDoctorCommand, executeLoadRunCommand } from "./commands/load.js";
+import {
+  executeSecurityDoctorCommand,
+  executeSecurityRunCommand,
+  executeSecurityApiCommand,
+  executeSecurityReportCommand,
+} from "./commands/security.js";
 
 describe("GoodGirl CLI Command Handlers", () => {
   it("doctor command runs and returns status code", async () => {
@@ -15,6 +21,11 @@ describe("GoodGirl CLI Command Handlers", () => {
     expect(typeof code).toBe("number");
   });
 
+  it("security doctor command runs and returns status code", async () => {
+    const code = await executeSecurityDoctorCommand();
+    expect(typeof code).toBe("number");
+  });
+
   it("load run command returns error code 1 when script is missing", async () => {
     const code = await executeLoadRunCommand("");
     expect(code).toBe(1);
@@ -22,6 +33,24 @@ describe("GoodGirl CLI Command Handlers", () => {
 
   it("load run command returns error code 1 when script file does not exist", async () => {
     const code = await executeLoadRunCommand("non-existent-script.js");
+    expect(code).toBe(1);
+  });
+
+  it("security run command returns error code 1 when plan is missing", async () => {
+    const code = await executeSecurityRunCommand("");
+    expect(code).toBe(1);
+  });
+
+  it("security api command returns error code 1 when spec is missing", async () => {
+    const code = await executeSecurityApiCommand("");
+    expect(code).toBe(1);
+  });
+
+  it("security report command returns error code 1 when report file is missing", async () => {
+    const code = await executeSecurityReportCommand({
+      format: "json",
+      config: "non-existent-config.ts",
+    });
     expect(code).toBe(1);
   });
 
