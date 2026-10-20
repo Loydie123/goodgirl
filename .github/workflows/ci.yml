@@ -63,6 +63,9 @@ jobs:
       - name: Run GoodGirl load doctor check
         run: pnpm qa load doctor
 
+      - name: Run GoodGirl security doctor check
+        run: pnpm qa security doctor
+
       - name: Run GoodGirl test suite
         run: pnpm qa test all
 
