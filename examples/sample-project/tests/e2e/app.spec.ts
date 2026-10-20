@@ -1,21 +1,19 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/test.js";
 
-test.describe("Sample Project - E2E User Journey", () => {
-  test("homepage loads and displays main heading", async ({ page }) => {
-    await page.goto("/");
-    const heading = page.locator("h1");
-    await expect(heading).toBeVisible();
-    await expect(heading).toHaveText("GoodGirl QA Test Bench");
+test.describe("Sample Project - E2E User Journey (Page Object Model)", () => {
+  test("homepage loads and displays main heading via POM", async ({ homePage }) => {
+    await homePage.goto();
+    await expect(homePage.heading).toBeVisible();
+    await expect(homePage.heading).toHaveText("GoodGirl QA Test Bench");
   });
 
-  test("user triggers action and verifies success status", async ({ page }) => {
-    await page.goto("/");
-    const status = page.locator("#status-message");
-    await expect(status).toHaveText("Awaiting User Interaction");
+  test("user triggers action and verifies success status via POM", async ({ homePage }) => {
+    await homePage.goto();
+    const initialStatus = await homePage.getStatusText();
+    expect(initialStatus).toBe("Awaiting User Interaction");
 
-    const triggerBtn = page.locator("#action-btn");
-    await triggerBtn.click();
+    await homePage.triggerAction();
 
-    await expect(status).toHaveText("Action completed successfully!");
+    await expect(homePage.statusMessage).toHaveText("Action completed successfully!");
   });
 });

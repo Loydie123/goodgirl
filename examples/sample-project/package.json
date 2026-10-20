@@ -15,6 +15,7 @@
     "@goodgirl/shared": "workspace:*"
   },
   "devDependencies": {
+    "@goodgirl/cli": "workspace:*",
     "@playwright/test": "^1.48.2",
     "typescript": "^5.6.3"
   }
