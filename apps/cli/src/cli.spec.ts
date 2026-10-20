@@ -2,11 +2,27 @@ import { describe, expect, it } from "vitest";
 import { executeDoctorCommand } from "./commands/doctor.js";
 import { executeReportCommand } from "./commands/report.js";
 import { executeTraceCommand } from "./commands/trace.js";
+import { executeLoadDoctorCommand, executeLoadRunCommand } from "./commands/load.js";
 
 describe("GoodGirl CLI Command Handlers", () => {
   it("doctor command runs and returns status code", async () => {
     const code = await executeDoctorCommand();
     expect(typeof code).toBe("number");
+  });
+
+  it("load doctor command runs and returns status code", async () => {
+    const code = await executeLoadDoctorCommand();
+    expect(typeof code).toBe("number");
+  });
+
+  it("load run command returns error code 1 when script is missing", async () => {
+    const code = await executeLoadRunCommand("");
+    expect(code).toBe(1);
+  });
+
+  it("load run command returns error code 1 when script file does not exist", async () => {
+    const code = await executeLoadRunCommand("non-existent-script.js");
+    expect(code).toBe(1);
   });
 
   it("report command returns error code 1 when report file is missing", async () => {
@@ -22,3 +38,4 @@ describe("GoodGirl CLI Command Handlers", () => {
     expect(code).toBe(1);
   });
 });
+

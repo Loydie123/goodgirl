@@ -3,6 +3,7 @@ import pc from "picocolors";
 import { executeTestCommand } from "../commands/test.js";
 import { executeReportCommand } from "../commands/report.js";
 import { executeDoctorCommand } from "../commands/doctor.js";
+import { executeLoadDoctorCommand, executeLoadRunCommand } from "../commands/load.js";
 
 export async function runInteractiveMenu(): Promise<number> {
   p.intro(pc.bold(pc.cyan("GoodGirl CLI — Interactive QA Menu")));
@@ -13,8 +14,10 @@ export async function runInteractiveMenu(): Promise<number> {
       { value: "run-e2e", label: "Run E2E Tests", hint: "Execute end-to-end browser tests" },
       { value: "run-api", label: "Run API Tests", hint: "Execute API endpoint test suite" },
       { value: "run-all", label: "Run All Tests", hint: "Execute full E2E and API test suite" },
+      { value: "load-smoke", label: "Run k6 Load Test", hint: "Execute k6 performance smoke workload" },
       { value: "report", label: "Generate Report", hint: "View latest HTML or JSON test report" },
-      { value: "doctor", label: "Check Environment", hint: "Validate system prerequisites & config" },
+      { value: "doctor", label: "Check Environment", hint: "Validate Playwright & system prerequisites" },
+      { value: "load-doctor", label: "Check k6 Performance Engine", hint: "Validate Grafana k6 installation & capabilities" },
       { value: "exit", label: "Exit", hint: "Close GoodGirl CLI" },
     ],
   });
@@ -36,8 +39,16 @@ export async function runInteractiveMenu(): Promise<number> {
     return await executeTestCommand("all");
   }
 
+  if (action === "load-smoke") {
+    return await executeLoadRunCommand("examples/k6/smoke.js");
+  }
+
   if (action === "doctor") {
     return await executeDoctorCommand();
+  }
+
+  if (action === "load-doctor") {
+    return await executeLoadDoctorCommand();
   }
 
   if (action === "report") {

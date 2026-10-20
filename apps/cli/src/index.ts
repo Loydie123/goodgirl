@@ -6,6 +6,11 @@ import { executeDoctorCommand } from "./commands/doctor.js";
 import { executeInitCommand } from "./commands/init.js";
 import { executeTraceCommand } from "./commands/trace.js";
 import { executeCodegenCommand } from "./commands/codegen.js";
+import {
+  executeLoadDoctorCommand,
+  executeLoadRunCommand,
+  type CliLoadRunOptions,
+} from "./commands/load.js";
 import { runInteractiveMenu } from "./utils/menu.js";
 import { printBanner } from "./utils/banner.js";
 
@@ -146,6 +151,71 @@ program
   .option("-o, --output <file>", "Save generated script to a file")
   .action(async (url: string | undefined, opts: { browser?: string; device?: string; output?: string }) => {
     const code = await executeCodegenCommand(url, opts);
+    process.exit(code);
+  });
+
+// Command: goodgirl load [script]
+const loadCmd = program
+  .command("load")
+  .description("Grafana k6 performance testing engine (run, doctor)");
+
+loadCmd
+  .argument("[script]", "Path to k6 test script")
+  .option("-u, --vus <count>", "Virtual users count override")
+  .option("-d, --duration <duration>", "Test execution duration (e.g. 10s, 1m)")
+  .option("-i, --iterations <count>", "Total iteration limit override")
+  .option("-s, --stage <stage...>", "Ramping stages (e.g. 5s:10 10s:20 5s:0)")
+  .option("-e, --env <vars...>", "Environment variables (e.g. BASE_URL=http://127.0.0.1:4173)")
+  .option("--summary-export <path>", "Path to k6 summary JSON output")
+  .option("--json-report <path>", "Save structured GoodGirl JSON summary to file")
+  .option("--allow-external", "Authorize load test execution against non-local targets", false)
+  .option("--authorized", "Alias for --allow-external", false)
+  .option("--raw", "Stream raw native k6 stdout/stderr directly", false)
+  .option("-c, --config <path>", "Custom configuration file path")
+  .action(async (script: string | undefined, opts: CliLoadRunOptions & { authorized?: boolean }) => {
+    if (script) {
+      const passthroughArgs = getPassthroughArgs();
+      const code = await executeLoadRunCommand(script, {
+        ...opts,
+        allowExternal: opts.allowExternal || opts.authorized,
+        passthroughArgs: passthroughArgs.length > 0 ? passthroughArgs : undefined,
+      });
+      process.exit(code);
+    } else {
+      loadCmd.help();
+    }
+  });
+
+loadCmd
+  .command("run <script>")
+  .description("Execute a native k6 load test script")
+  .option("-u, --vus <count>", "Virtual users count override")
+  .option("-d, --duration <duration>", "Test execution duration (e.g. 10s, 1m)")
+  .option("-i, --iterations <count>", "Total iteration limit override")
+  .option("-s, --stage <stage...>", "Ramping stages (e.g. 5s:10 10s:20 5s:0)")
+  .option("-e, --env <vars...>", "Environment variables (e.g. BASE_URL=http://127.0.0.1:4173)")
+  .option("--summary-export <path>", "Path to k6 summary JSON output")
+  .option("--json-report <path>", "Save structured GoodGirl JSON summary to file")
+  .option("--allow-external", "Authorize load test execution against non-local targets", false)
+  .option("--authorized", "Alias for --allow-external", false)
+  .option("--raw", "Stream raw native k6 stdout/stderr directly", false)
+  .option("-c, --config <path>", "Custom configuration file path")
+  .action(async (script: string, opts: CliLoadRunOptions & { authorized?: boolean }) => {
+    const passthroughArgs = getPassthroughArgs();
+    const code = await executeLoadRunCommand(script, {
+      ...opts,
+      allowExternal: opts.allowExternal || opts.authorized,
+      passthroughArgs: passthroughArgs.length > 0 ? passthroughArgs : undefined,
+    });
+    process.exit(code);
+  });
+
+loadCmd
+  .command("doctor")
+  .description("Run k6 performance engine and binary diagnostics")
+  .option("-c, --config <path>", "Custom configuration file path")
+  .action(async (opts: { config?: string }) => {
+    const code = await executeLoadDoctorCommand(opts);
     process.exit(code);
   });
 
