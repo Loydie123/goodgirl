@@ -1,13 +1,18 @@
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { Socket } from "node:net";
 import {
   ensureDirectoryExists,
   getResultsPaths,
+  type LoadRunOptions,
+  type LoadRunSummary,
   type TestRunOptions,
   type TestSummary,
 } from "@goodgirl/shared";
 import { parsePlaywrightJsonReport } from "@goodgirl/reporter";
+import { startFixtureServer, type FixtureServerInstance } from "@goodgirl/playwright";
+import { runK6Test } from "@goodgirl/k6";
 import { loadGoodGirlConfig } from "../config/loader.js";
 import { runSubprocess, type SubprocessResult } from "./subprocess.js";
 
@@ -278,4 +283,65 @@ export async function launchShowReport(
   }
   return runSubprocess(cli.command, args, { cwd });
 }
+
+function isPortListening(port: number, host = "127.0.0.1"): Promise<boolean> {
+  return new Promise((res) => {
+    const socket = new Socket();
+    socket.setTimeout(250);
+    socket.once("connect", () => {
+      socket.destroy();
+      res(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      res(false);
+    });
+    socket.once("error", () => {
+      socket.destroy();
+      res(false);
+    });
+    socket.connect(port, host);
+  });
+}
+
+/**
+ * Executes a native Grafana k6 load test using GoodGirl configuration.
+ * Automatically ensures local fixture server is available if targeting localhost.
+ */
+export async function runLoadTest(
+  options: LoadRunOptions,
+): Promise<LoadRunSummary> {
+  const cwd = options.cwd ? resolve(options.cwd) : process.cwd();
+  const { config } = await loadGoodGirlConfig(cwd, options.configPath);
+
+  let fixtureServer: FixtureServerInstance | undefined;
+  const isLocalTarget =
+    (config.baseURL ?? "").includes("4173") ||
+    options.script.includes("smoke") ||
+    options.script.includes("load") ||
+    options.script.includes("stress") ||
+    options.script.includes("spike") ||
+    options.script.includes("soak") ||
+    options.script.includes("custom-metrics");
+
+  if (isLocalTarget) {
+    const isListening = await isPortListening(4173);
+    if (!isListening) {
+      try {
+        fixtureServer = await startFixtureServer(4173);
+      } catch {
+        // Continue if port is in use or cannot be bound
+      }
+    }
+  }
+
+  try {
+    return await runK6Test(options, config.k6);
+  } finally {
+    if (fixtureServer) {
+      await fixtureServer.close().catch(() => {});
+    }
+  }
+}
+
 

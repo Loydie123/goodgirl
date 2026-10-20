@@ -30,6 +30,17 @@ export const browserProjectSchema = z.object({
   testIgnore: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
+export const k6ConfigSchema = z
+  .object({
+    binaryPath: z.string().optional(),
+    allowedTargets: z.array(z.string()).optional(),
+    allowExternalTargets: z.boolean().default(false),
+    defaultVUs: z.number().int().positive().optional(),
+    defaultDuration: z.string().optional(),
+    summaryTrendStats: z.array(z.string()).optional(),
+  })
+  .optional();
+
 export const goodGirlConfigSchema = z.object({
   projectName: z.string().default("GoodGirl QA Project"),
   baseURL: z.string().default(DEFAULT_BASE_URL),
@@ -50,6 +61,7 @@ export const goodGirlConfigSchema = z.object({
   testDir: z.string().default(DEFAULT_TEST_DIR),
   resultsDir: z.string().default(DEFAULT_RESULTS_DIR),
   webServer: webServerSchema,
+  k6: k6ConfigSchema,
   use: z.record(z.unknown()).optional(),
 });
 

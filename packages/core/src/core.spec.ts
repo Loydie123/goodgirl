@@ -115,5 +115,30 @@ describe("GoodGirl Doctor Checker", () => {
     expect(browserCheck).toBeDefined();
     expect(["pass", "warn"]).toContain(browserCheck?.status);
   });
+
+  it("validates k6 configuration schema", () => {
+    const parsed = goodGirlConfigSchema.parse({
+      k6: {
+        binaryPath: "/usr/local/bin/k6",
+        allowedTargets: ["127.0.0.1", "test.k6.io"],
+        allowExternalTargets: true,
+        defaultVUs: 10,
+        defaultDuration: "30s",
+        summaryTrendStats: ["avg", "p(90)", "p(95)", "p(99)"],
+      },
+    });
+    expect(parsed.k6).toBeDefined();
+    expect(parsed.k6?.defaultVUs).toBe(10);
+    expect(parsed.k6?.allowExternalTargets).toBe(true);
+    expect(parsed.k6?.allowedTargets).toContain("test.k6.io");
+  });
+
+  it("runs load doctor checks specifically for k6", async () => {
+    const { runLoadDoctorChecks } = await import("./doctor/checker.js");
+    const report = await runLoadDoctorChecks(process.cwd());
+    expect(report.checks.length).toBeGreaterThanOrEqual(4);
+    const k6Check = report.checks.find((c) => c.name === "k6 Binary Executable");
+    expect(k6Check).toBeDefined();
+  });
 });
 
