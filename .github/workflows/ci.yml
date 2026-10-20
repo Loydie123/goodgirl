@@ -46,13 +46,13 @@ jobs:
       - name: Run unit tests
         run: pnpm test
 
-      - name: Install Playwright Chromium browser (Linux)
+      - name: Install Playwright browsers (Linux)
         if: runner.os == 'Linux'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
-      - name: Install Playwright Chromium browser (Windows & macOS)
+      - name: Install Playwright browsers (Windows & macOS)
         if: runner.os != 'Linux'
-        run: pnpm exec playwright install chromium
+        run: pnpm exec playwright install chromium firefox webkit
 
       - name: Run GoodGirl doctor check
         run: pnpm qa doctor
@@ -60,10 +60,15 @@ jobs:
       - name: Run GoodGirl test suite
         run: pnpm qa test all
 
+      - name: Run sample project test suite
+        run: pnpm --filter sample-project test
+
       - name: Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts-${{ matrix.os }}
-          path: goodgirl-results/
+          path: |
+            goodgirl-results/
+            examples/sample-project/goodgirl-results/
           retention-days: 7
