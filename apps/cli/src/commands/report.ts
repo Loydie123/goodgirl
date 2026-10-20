@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pc from "picocolors";
-import { loadGoodGirlConfig } from "@goodgirl/core";
+import { launchShowReport, loadGoodGirlConfig } from "@goodgirl/core";
 import { getResultsPaths, toFileUrlString, type ReportFormat } from "@goodgirl/shared";
 
 export interface CliReportOptions {
   format?: string;
   config?: string;
+  open?: boolean;
 }
 
 export async function executeReportCommand(options: CliReportOptions = {}): Promise<number> {
@@ -48,6 +49,17 @@ export async function executeReportCommand(options: CliReportOptions = {}): Prom
     return 1;
   }
 
+  if (options.open) {
+    console.log(pc.cyan(`\n🌐 Opening Playwright HTML report from ${htmlReportDir}...\n`));
+    try {
+      const result = await launchShowReport(htmlReportDir, cwd);
+      return result.exitCode;
+    } catch (err) {
+      console.error(pc.red(`\n✖ Failed to open HTML report: ${err instanceof Error ? err.message : String(err)}\n`));
+      return 1;
+    }
+  }
+
   const fileUrl = toFileUrlString(htmlIndex);
   console.log("\n" + pc.dim("─".repeat(56)));
   console.log(` ${pc.bold("GoodGirl HTML Test Report")}`);
@@ -55,9 +67,10 @@ export async function executeReportCommand(options: CliReportOptions = {}): Prom
   console.log(`  ${pc.bold("Location:")} ${pc.cyan(htmlIndex)}`);
   console.log(`  ${pc.bold("Open in Browser:")} ${pc.green(fileUrl)}`);
   console.log(
-    pc.dim(`\n  Tip: You can open this file in any web browser or serve it locally.`),
+    pc.dim(`\n  Tip: Run with \`--open\` or use \`playwright show-report\` to launch local report viewer.`),
   );
   console.log(pc.dim("─".repeat(56)) + "\n");
 
   return 0;
 }
+

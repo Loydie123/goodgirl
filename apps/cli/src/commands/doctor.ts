@@ -1,11 +1,15 @@
 import pc from "picocolors";
 import { runDoctorChecks } from "@goodgirl/core";
 
-export async function executeDoctorCommand(): Promise<number> {
+export interface CliDoctorOptions {
+  config?: string;
+}
+
+export async function executeDoctorCommand(options: CliDoctorOptions = {}): Promise<number> {
   console.log(pc.cyan("\n🩺 Running GoodGirl Environment & Configuration Diagnostics...\n"));
 
   try {
-    const report = await runDoctorChecks(process.cwd());
+    const report = await runDoctorChecks(process.cwd(), options.config);
 
     for (const check of report.checks) {
       const icon =
