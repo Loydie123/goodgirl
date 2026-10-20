@@ -52,7 +52,9 @@ export function formatSecurityTerminalSummary(summary: SecurityRunSummary): stri
 
   const thresholdLabel = summary.thresholdPassed
     ? pc.green("✔ Satisfied")
-    : pc.red("✖ Threshold Breached");
+    : summary.riskSummary.total > 0
+      ? pc.red("✖ Threshold Breached")
+      : pc.red("✖ Incomplete / No Report");
 
   const targetLabel = summary.target || summary.planPath || "ZAP Automation Plan";
   lines.push(`  ${pc.bold("Target / Plan:")}     ${pc.cyan(redactSensitiveData(targetLabel))}`);
@@ -62,6 +64,9 @@ export function formatSecurityTerminalSummary(summary: SecurityRunSummary): stri
   );
   lines.push(`  ${pc.bold("Overall Status:")}    ${statusLabel}`);
   lines.push(`  ${pc.bold("Risk Threshold:")}    ${thresholdLabel}`);
+  if (summary.failureReason) {
+    lines.push(`  ${pc.bold("Failure Reason:")}    ${pc.red(summary.failureReason)}`);
+  }
   lines.push(`  ${pc.bold("Scan Duration:")}     ${formatMs(summary.durationMs)}`);
 
   // Risk Breakdown

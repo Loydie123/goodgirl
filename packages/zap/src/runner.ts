@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { platform } from "node:os";
 import spawn from "cross-spawn";
@@ -44,6 +44,11 @@ export async function runZapAutomation(
   const resultsDir = resolve(cwd, options.reportDir ?? DEFAULT_RESULTS_DIR);
   if (!existsSync(resultsDir)) {
     mkdirSync(resultsDir, { recursive: true });
+  }
+  try {
+    chmodSync(resultsDir, 0o777);
+  } catch {
+    // Ignore permissions errors on platforms without POSIX chmod
   }
 
   const paths = getSecurityResultsPaths(cwd, options.reportDir);
@@ -137,6 +142,11 @@ export async function runZapAutomation(
     const dockerPlanContent = adjustPlanForDockerNetworking(rawPlanContent);
     const dockerPlanFile = join(cwd, ".goodgirl-docker-zap-plan.yaml");
     writeFileSync(dockerPlanFile, dockerPlanContent, "utf-8");
+    try {
+      chmodSync(dockerPlanFile, 0o666);
+    } catch {
+      // Ignore permissions errors
+    }
 
     // Relative path inside container mount /zap/wrk
     const relPlanPath = relative(cwd, dockerPlanFile).replace(/\\/g, "/");
@@ -145,6 +155,10 @@ export async function runZapAutomation(
     execArgs = [
       "run",
       "--rm",
+      "-u",
+      "0:0",
+      "-w",
+      "/zap/wrk",
       "-v",
       `${cwd}:/zap/wrk/:rw`,
     ];
@@ -258,6 +272,20 @@ export async function runZapAutomation(
 
   // 6. Parse results
   const reportJsonCandidate = paths.securityJsonReportPath;
+  const reportGenerated = existsSync(reportJsonCandidate);
+
+  // Ensure output files are accessible cross-platform
+  try {
+    if (reportGenerated) {
+      chmodSync(reportJsonCandidate, 0o666);
+    }
+    if (existsSync(paths.securityHtmlReportPath)) {
+      chmodSync(paths.securityHtmlReportPath, 0o666);
+    }
+  } catch {
+    // Ignore permissions errors
+  }
+
   let alerts: SecurityRunSummary["alerts"] = [];
   let riskSummary: SecurityRunSummary["riskSummary"] = {
     high: 0,
@@ -268,7 +296,7 @@ export async function runZapAutomation(
   };
   let thresholdPassed = true;
 
-  if (existsSync(reportJsonCandidate)) {
+  if (reportGenerated) {
     const parsed = parseZapJsonReport(reportJsonCandidate, {
       failOnRisk: options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK,
     });
@@ -283,8 +311,8 @@ export async function runZapAutomation(
   }
 
   // ZAP AF exit code 0 = clean, exit code 2 = completed with warnings/alerts
-  const zapCompleted = (exitCode === 0 || exitCode === 2) && existsSync(reportJsonCandidate);
-  const success = (zapCompleted || exitCode === 0) && thresholdPassed && !executionError;
+  const zapCompleted = (exitCode === 0 || exitCode === 2) && reportGenerated;
+  const success = (zapCompleted || exitCode === 0) && thresholdPassed && !executionError && (reportGenerated || exitCode === 0);
 
   const summary: SecurityRunSummary = {
     target: options.target,
@@ -296,7 +324,7 @@ export async function runZapAutomation(
     thresholdPassed,
     riskSummary,
     alerts,
-    reportPathJson: existsSync(paths.securityJsonReportPath) ? paths.securityJsonReportPath : undefined,
+    reportPathJson: reportGenerated ? paths.securityJsonReportPath : undefined,
     reportPathHtml: existsSync(paths.securityHtmlReportPath) ? paths.securityHtmlReportPath : undefined,
     engine: {
       type: envInfo.engine,
@@ -307,8 +335,8 @@ export async function runZapAutomation(
     },
     failureReason: executionError
       ? executionError.message
-      : !zapCompleted && exitCode !== 0
-        ? `ZAP execution failed with exit code ${exitCode}${stderrBuffer ? ": " + stderrBuffer.trim() : stdoutBuffer ? ": " + stdoutBuffer.trim() : ""}`
+      : !reportGenerated && exitCode !== 0
+        ? `ZAP execution failed with exit code ${exitCode} and no report was generated${stderrBuffer ? ": " + stderrBuffer.trim() : stdoutBuffer ? ": " + stdoutBuffer.trim() : ""}`
         : !thresholdPassed
           ? `Security risk threshold breached (Risk level "${options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK}" or higher found)`
           : undefined,
@@ -316,6 +344,11 @@ export async function runZapAutomation(
 
   // Persist summary
   writeFileSync(paths.securityResultsJsonPath, JSON.stringify(summary, null, 2), "utf-8");
+  try {
+    chmodSync(paths.securityResultsJsonPath, 0o666);
+  } catch {
+    // Ignore permissions errors
+  }
 
   return summary;
 }
