@@ -1,0 +1,39 @@
+---
+env:
+  contexts:
+    - name: "GoodGirl-API"
+      urls:
+        - "http://127.0.0.1:4173"
+      includePaths:
+        - "http://127.0.0.1:4173.*"
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: openapi
+    name: openapi
+    parameters:
+      apiFile: "examples/zap/openapi.json"
+      targetUrl: "http://127.0.0.1:4173"
+      context: "GoodGirl-API"
+
+  - type: passiveScan-wait
+    name: passiveScan-wait
+    parameters:
+      maxDuration: 2
+
+  - type: report
+    name: report-json
+    parameters:
+      template: traditional-json
+      reportDir: "goodgirl-results"
+      reportFile: zap-report
+
+  - type: report
+    name: report-html
+    parameters:
+      template: traditional-html
+      reportDir: "goodgirl-results"
+      reportFile: zap-report

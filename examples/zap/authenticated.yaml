@@ -1,0 +1,52 @@
+---
+# Template for Authenticated ZAP Automation Framework scans
+# Credentials and session tokens are populated from environment variables
+# DO NOT commit real secrets or credentials into source control
+env:
+  contexts:
+    - name: "GoodGirl-Authenticated"
+      urls:
+        - "http://127.0.0.1:4173"
+      includePaths:
+        - "http://127.0.0.1:4173.*"
+      sessionManagement:
+        method: "headers"
+        parameters:
+          Authorization: "Bearer ${AUTH_TOKEN}"
+      users:
+        - name: "qa-test-user"
+          credentials:
+            username: "${AUTH_USERNAME}"
+            password: "${AUTH_PASSWORD}"
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: spider
+    name: spider
+    parameters:
+      context: "GoodGirl-Authenticated"
+      user: "qa-test-user"
+      maxDuration: 2
+      url: "http://127.0.0.1:4173"
+
+  - type: passiveScan-wait
+    name: passiveScan-wait
+    parameters:
+      maxDuration: 2
+
+  - type: report
+    name: report-json
+    parameters:
+      template: traditional-json
+      reportDir: "goodgirl-results"
+      reportFile: zap-report
+
+  - type: report
+    name: report-html
+    parameters:
+      template: traditional-html
+      reportDir: "goodgirl-results"
+      reportFile: zap-report

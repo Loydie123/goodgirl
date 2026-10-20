@@ -1,0 +1,39 @@
+---
+env:
+  contexts:
+    - name: "GoodGirl-Baseline"
+      urls:
+        - "http://127.0.0.1:4173"
+      includePaths:
+        - "http://127.0.0.1:4173.*"
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: spider
+    name: spider
+    parameters:
+      context: "GoodGirl-Baseline"
+      maxDuration: 2
+      url: "http://127.0.0.1:4173"
+
+  - type: passiveScan-wait
+    name: passiveScan-wait
+    parameters:
+      maxDuration: 2
+
+  - type: report
+    name: report-json
+    parameters:
+      template: traditional-json
+      reportDir: "goodgirl-results"
+      reportFile: zap-report
+
+  - type: report
+    name: report-html
+    parameters:
+      template: traditional-html
+      reportDir: "goodgirl-results"
+      reportFile: zap-report
