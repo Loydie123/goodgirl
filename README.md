@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/typescript-strict-3178C6)](https://www.typescriptlang.org)
 [![pnpm](https://img.shields.io/badge/pnpm-workspaces-F69220)](https://pnpm.io)
 
-An all-in-one, CLI-first QA automation toolkit for end-to-end browser and REST API testing. Engineered with TypeScript, pnpm Workspaces, Turborepo, and Playwright for cross-platform reliability on Windows (PowerShell), macOS, and Linux.
+An all-in-one, CLI-first QA automation toolkit for end-to-end browser and REST API testing. Engineered with TypeScript, pnpm Workspaces, Turborepo, and native Playwright Test integration for cross-platform reliability on Windows (PowerShell), macOS, and Linux.
 
 ```text
    ____                 _     ____   _          _ 
@@ -19,23 +19,26 @@ An all-in-one, CLI-first QA automation toolkit for end-to-end browser and REST A
 
 ## Features
 
-- **CLI-First Architecture**: Run tests directly from the command line or CI runners without heavy GUI wrappers.
+- **CLI-First Architecture**: Run tests directly from the terminal or CI runners without heavy GUI wrappers.
+- **Deep Playwright Integration**: Direct access to Playwright Test features: Chromium, Firefox, WebKit, mobile emulation, step inspector, UI mode, tracing, and codegen.
+- **Cross-Browser & Matrix Testing**: Configure multi-browser projects, custom device viewports, and parallel worker pools.
 - **Interactive Terminal UI**: Optional `@clack/prompts` menu for exploratory test runs and diagnostics.
-- **Dual Testing Modes**: Execute full browser journeys (Chromium) and REST API contract checks with shared tooling.
+- **Dual Testing Disciplines**: Execute full browser user journeys and REST API contract checks with shared tooling.
+- **Debugging & Telemetry**: Built-in trace viewing (`goodgirl trace`), test generator (`goodgirl codegen`), interactive report server (`goodgirl report --open`), and flaky test tracking.
+- **Argument Passthrough**: Forward raw native Playwright flags directly using `--` (e.g. `goodgirl test all -- --workers=1`).
 - **Cross-Platform Native**: Tested and validated on Windows PowerShell, macOS, and Linux.
 - **Hermetic Fixture Server**: Built-in HTTP test bench (`127.0.0.1:4173`) for running verification suites offline.
-- **Actionable Reporting**: ANSI terminal summaries, self-contained Playwright HTML reports, and structured JSON telemetry.
 
 ## Testing Engines
 
 | Engine | Discipline | Capabilities | Status |
 |:---|:---|:---|:---:|
-| **Playwright** | Functional E2E & REST API | Browser automation, Chromium runner, REST API contracts, traces & screenshots | **Implemented (Phase 1)** |
+| **Playwright** | Functional E2E & REST API | Multi-browser matrix (Chromium, Firefox, WebKit), device emulation, route mocking, traces, video, codegen | **Implemented (Phase 2)** |
 | **Grafana k6** | Performance & Load | Virtual user load simulation, latency percentiles, thresholds | *Planned (Phase 3)* |
 | **OWASP ZAP** | Application Security | Automated vulnerability scanning, baseline proxy inspection | *Planned (Phase 4)* |
 
 > [!NOTE]
-> Phase 1 delivers complete, production-ready **Playwright** functional E2E and REST API testing. Grafana k6 and OWASP ZAP integrations are planned for future phases.
+> Phase 2 provides advanced **Playwright** capabilities: cross-browser execution (Chromium, Firefox, WebKit), device emulation presets, debug inspector, interactive UI mode, trace viewer, codegen, network mocking, and argument passthrough. Grafana k6 and OWASP ZAP integrations are planned for future phases.
 
 ## Quick Start
 
@@ -52,8 +55,8 @@ pnpm install --frozen-lockfile
 # 3. Build workspace packages
 pnpm build
 
-# 4. Install Playwright browser binary
-pnpm exec playwright install chromium
+# 4. Install Playwright browser binaries
+pnpm exec playwright install chromium firefox webkit
 
 # 5. Run environment diagnostics
 pnpm qa doctor
@@ -75,9 +78,9 @@ pnpm install --frozen-lockfile
 # 3. Build workspace packages
 pnpm build
 
-# 4. Install Playwright browser binary
-pnpm exec playwright install chromium
-# (Ubuntu/Debian: if system libraries are needed: pnpm exec playwright install --with-deps chromium)
+# 4. Install Playwright browser binaries
+pnpm exec playwright install chromium firefox webkit
+# (Ubuntu/Debian: if system libraries are needed: pnpm exec playwright install --with-deps chromium firefox webkit)
 
 # 5. Run environment diagnostics
 pnpm qa doctor
@@ -114,42 +117,76 @@ GoodGirl CLI — Interactive QA Menu
 # Run all test suites (E2E and API)
 pnpm qa test all
 
-# Run only E2E browser tests
-pnpm qa test e2e
+# Run specific test file or directory
+pnpm qa test tests/e2e/login.spec.ts
 
-# Run E2E tests in headed mode (visible browser window)
+# Run tests on specific browser engine
+pnpm qa test e2e --browser firefox
+pnpm qa test e2e --browser webkit
+pnpm qa test all --browser all
+
+# Run specific project or device preset
+pnpm qa test --project "Mobile Chrome"
+
+# Run tests in headed browser mode
 pnpm qa test e2e --headed
 
-# Run only REST API contract tests
-pnpm qa test api
+# Launch Playwright step-by-step inspector debugger
+pnpm qa test --debug
 
-# Filter tests by title or tag pattern
+# Open interactive Playwright UI mode
+pnpm qa test --ui
+
+# Record execution traces or videos
+pnpm qa test all --trace on --video on
+
+# Filter tests by title regex pattern or tag
 pnpm qa test all --grep "health"
+pnpm qa test all --grep-invert "slow"
 
-# Initialize GoodGirl configuration and starter tests in a project
+# Concurrency, retries, and failure limits
+pnpm qa test all --workers 4 --retries 2 --max-failures 1
+
+# Only re-run tests that failed in previous run
+pnpm qa test all --last-failed
+
+# Forward native Playwright arguments directly
+pnpm qa test all -- --workers=1 --ignore-snapshots
+
+# Open Playwright Trace Viewer for inspection
+pnpm qa trace
+pnpm qa trace goodgirl-results/trace.zip
+
+# Launch Playwright Codegen test recorder
+pnpm qa codegen https://example.com
+pnpm qa codegen https://example.com --device "iPhone 13"
+
+# View or serve HTML/JSON reports
+pnpm qa report
+pnpm qa report --open
+pnpm qa report --format json
+
+# Initialize GoodGirl configuration in a project
 pnpm qa init
 
-# Run system and environment diagnostics
+# Run system and browser diagnostics
 pnpm qa doctor
-
-# View or export test reports
-pnpm qa report --format html
-pnpm qa report --format json
 ```
 
 ### Command Reference
 
-| Command | Options | Description |
+| Command | Key Options | Description |
 |---|---|---|
 | `goodgirl` | *(none)* | Opens interactive terminal menu |
-| `goodgirl --help` | `-h, --help` | Displays command reference |
-| `goodgirl --version` | `-V, --version` | Prints installed version (`0.1.0`) |
+| `goodgirl test [files...]` | `--browser`, `--project`, `--headed`, `--workers`, `--retries`, `--debug`, `--ui`, `--trace`, `--video` | Runs test suites with full Playwright controls |
+| `goodgirl test e2e [files...]` | *(same as test)* | Runs only end-to-end browser test cases |
+| `goodgirl test api [files...]` | *(same as test)* | Runs only REST API contract test cases |
+| `goodgirl test all [files...]` | *(same as test)* | Runs both E2E browser and REST API test suites |
+| `goodgirl trace [path]` | `[path]` | Launches Playwright Trace Viewer (auto-detects recent trace archive) |
+| `goodgirl codegen [url]` | `-b, --browser`, `--device`, `-o, --output` | Launches interactive browser test recorder |
+| `goodgirl report` | `-f, --format <html\|json>`, `-o, --open`, `-c, --config <path>` | Displays report URL, serves interactive HTML viewer, or prints JSON |
+| `goodgirl doctor` | `-c, --config <path>` | Diagnoses Node.js, pnpm, OS, Playwright browsers, config, and permissions |
 | `goodgirl init` | `-f, --force` | Scaffolds `goodgirl.config.ts`, `tests/e2e/`, and `tests/api/` |
-| `goodgirl doctor` | *(none)* | Diagnoses Node.js, pnpm, OS, Playwright, config, and permissions |
-| `goodgirl test all` | `--headed`, `--grep <pattern>`, `-c, --config <path>` | Runs both E2E browser and REST API test suites |
-| `goodgirl test e2e` | `--headed`, `--grep <pattern>`, `-c, --config <path>` | Runs only E2E browser test cases |
-| `goodgirl test api` | `--grep <pattern>`, `-c, --config <path>` | Runs only REST API test cases |
-| `goodgirl report` | `-f, --format <html\|json>`, `-c, --config <path>` | Displays HTML report location or outputs raw JSON |
 
 ### Terminal Output Preview
 
@@ -170,7 +207,7 @@ Running 6 tests using 2 workers
  GoodGirl Test Execution Summary
 ────────────────────────────────────────────────────────
   Overall Status:  ✔ PASSED
-  Total Tests:     6 | Passed: 6 | Failed: 0 | Skipped: 0
+  Total Tests:     6 | Passed: 6 | Failed: 0 | Skipped: 0 | Flaky (Retried): 0
   Duration:        755ms
   HTML Report:     goodgirl-results/html/index.html
   JSON Report:     goodgirl-results/results.json
@@ -188,12 +225,38 @@ const config: GoodGirlConfig = {
   projectName: "E-Commerce App QA",
   baseURL: "https://staging.example.com",
   browser: "chromium",
+  browsers: ["chromium", "firefox", "webkit"],
+  projects: [
+    {
+      name: "Desktop Chrome",
+      browser: "chromium",
+    },
+    {
+      name: "Desktop Firefox",
+      browser: "firefox",
+    },
+    {
+      name: "Mobile Safari",
+      device: "iPhone 13",
+    },
+    {
+      name: "API Suite",
+      testMatch: "**/api/**/*.spec.ts",
+    },
+  ],
+  workers: 4,
+  fullyParallel: true,
   timeout: 30000,
   retries: 1,
   screenshots: "only-on-failure",
   trace: "retain-on-failure",
+  video: "retain-on-failure",
   testDir: "tests",
   resultsDir: "goodgirl-results",
+  use: {
+    viewport: { width: 1280, height: 720 },
+    ignoreHTTPSErrors: true,
+  },
 };
 
 export default config;
@@ -207,44 +270,117 @@ Runtime settings can be overridden via environment variables without modifying c
 |---|---|---|
 | `GOODGIRL_BASE_URL` | `baseURL` | `http://localhost:3000` |
 | `GOODGIRL_BROWSER` | `browser` | `chromium`, `firefox`, `webkit` |
+| `GOODGIRL_BROWSERS` | `browsers` | `chromium,firefox,webkit` |
+| `GOODGIRL_WORKERS` | `workers` | `4` or `50%` |
+| `GOODGIRL_FULLY_PARALLEL` | `fullyParallel` | `true`, `false` |
 | `GOODGIRL_TIMEOUT` | `timeout` | `45000` |
 | `GOODGIRL_RETRIES` | `retries` | `2` |
+| `GOODGIRL_TRACE` | `trace` | `on`, `off`, `retain-on-failure` |
+| `GOODGIRL_VIDEO` | `video` | `on`, `off`, `retain-on-failure` |
 
 ## Writing Tests
 
-### 1. Offline Hermetic Testing (Default)
-When `baseURL` targets port `4173` (the default), GoodGirl automatically boots its built-in Node.js HTTP fixture server. You can immediately run E2E and API tests offline without external servers.
+### 1. Page Object Model (POM) & Custom Fixtures
 
-### 2. Testing an External Application
-Set `baseURL` in `goodgirl.config.ts` (or `GOODGIRL_BASE_URL`) and create test files under `tests/e2e/` or `tests/api/`:
+Encapsulate UI selectors and workflows in clean Page Objects, and inject them via custom test fixtures:
 
 ```typescript
-// tests/e2e/login.spec.ts
-import { test, expect } from "@playwright/test";
+// tests/pages/HomePage.ts
+import type { Locator, Page } from "@playwright/test";
 
-test.describe("Authentication", () => {
-  test("user submits credentials and reaches dashboard", async ({ page }) => {
-    await page.goto("/login");
-    await page.locator("#username").fill("qa_engineer");
-    await page.locator("#password").fill("SuperSecret123!");
-    await page.locator("button[type=submit]").click();
+export class HomePage {
+  readonly heading: Locator;
+  readonly actionButton: Locator;
 
-    await expect(page.locator("h1")).toHaveText("Dashboard");
+  constructor(readonly page: Page) {
+    this.heading = page.locator("h1");
+    this.actionButton = page.locator("#action-btn");
+  }
+
+  async goto() {
+    await this.page.goto("/");
+  }
+
+  async triggerAction() {
+    await this.actionButton.click();
+  }
+}
+```
+
+```typescript
+// tests/fixtures/test.ts
+import { test as baseTest, expect } from "@playwright/test";
+import { HomePage } from "../pages/HomePage.js";
+
+type TestFixtures = {
+  homePage: HomePage;
+};
+
+export const test = baseTest.extend<TestFixtures>({
+  homePage: async ({ page }, use) => {
+    await use(new HomePage(page));
+  },
+});
+
+export { expect };
+```
+
+```typescript
+// tests/e2e/app.spec.ts
+import { test, expect } from "../fixtures/test.js";
+
+test.describe("User Journey", () => {
+  test("user interacts with home page", async ({ homePage }) => {
+    await homePage.goto();
+    await expect(homePage.heading).toBeVisible();
+    await homePage.triggerAction();
   });
 });
 ```
 
+### 2. Network Route Mocking & API Interception
+
+Intercept network requests directly using Playwright's native routing API:
+
 ```typescript
-// tests/api/health.spec.ts
+// tests/e2e/mocking.spec.ts
+import { test, expect } from "../fixtures/test.js";
+
+test.describe("Network Mocking", () => {
+  test("intercepts API and fulfills with mock payload", async ({ page, homePage }) => {
+    await page.route("**/api/users", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: 1, name: "Mocked User", role: "QA" }]),
+      });
+    });
+
+    await homePage.goto();
+  });
+
+  test("simulates network outage via route abort", async ({ page, homePage }) => {
+    await homePage.goto();
+    await page.route("**/api/critical-data", (route) => route.abort("failed"));
+  });
+});
+```
+
+### 3. REST API Contract Testing
+
+Execute HTTP requests using `APIRequestContext` without launching a browser:
+
+```typescript
+// tests/api/users.spec.ts
 import { test, expect } from "@playwright/test";
 
-test.describe("API Health", () => {
-  test("GET /api/health responds with 200 and ok status", async ({ request }) => {
-    const res = await request.get("/api/health");
+test.describe("Users API", () => {
+  test("GET /api/users returns list of active users", async ({ request }) => {
+    const res = await request.get("/api/users");
     expect(res.status()).toBe(200);
 
-    const body = await res.json();
-    expect(body.status).toBe("ok");
+    const users = await res.json();
+    expect(Array.isArray(users)).toBe(true);
   });
 });
 ```
@@ -255,13 +391,16 @@ All test runs generate artifacts in `goodgirl-results/` (gitignored):
 
 ```text
 goodgirl-results/
-├── html/             # Standalone Playwright HTML report
+├── html/             # Interactive Playwright HTML report
 │   └── index.html
-└── results.json      # Structured JSON execution telemetry
+├── results.json      # Structured JSON execution telemetry
+├── trace.zip         # Execution trace archives (actions, DOM snapshots, network)
+└── test-failed-*.png # Failure screenshots
 ```
 
-- **View HTML Report**: Run `pnpm qa report --format html` or `pnpm exec playwright show-report goodgirl-results/html`.
-- **View JSON Report**: Run `pnpm qa report --format json` to inspect or pipe telemetry.
+- **Open HTML Report in Browser**: Run `pnpm qa report --open` to serve the report locally.
+- **Inspect Execution Trace**: Run `pnpm qa trace` to open the most recent trace in Playwright Trace Viewer.
+- **Inspect JSON Telemetry**: Run `pnpm qa report --format json` to inspect or pipe test telemetry.
 
 ## Architecture
 
@@ -270,20 +409,25 @@ flowchart TD
     subgraph CLI["CLI Layer"]
         BIN["goodgirl CLI (Commander.js)"]
         MENU["Interactive Menu (@clack/prompts)"]
+        TRACE_CMD["goodgirl trace"]
+        CODEGEN_CMD["goodgirl codegen"]
     end
 
     subgraph CORE["Core Orchestration (@goodgirl/core)"]
         ORCH["Test Orchestrator"]
         CFG["Config Loader & Validator (Jiti + Zod)"]
-        DOC["Environment Diagnostics (doctor)"]
+        DOC["Environment & Browser Diagnostics (doctor)"]
     end
 
     subgraph ENGINES["Testing Engine Integration"]
-        subgraph ACTIVE["Phase 1 Implemented"]
+        subgraph ACTIVE["Playwright Engine (Phase 1 & Phase 2)"]
             PW["@goodgirl/playwright"]
-            E2E["E2E Tests (Chromium)"]
+            CROSS["Cross-Browser Matrix (Chromium, Firefox, WebKit)"]
+            DEVICES["Device Emulation (Mobile Chrome, Mobile Safari)"]
+            E2E["E2E Tests & Route Mocking"]
             API["REST API Contract Tests"]
             FIX["Built-in HTTP Fixture (127.0.0.1:4173)"]
+            INSPECT["Step Debugger & UI Mode"]
         end
         subgraph FUTURE["Planned Integrations"]
             K6["Grafana k6 (Phase 3)"]
@@ -292,21 +436,26 @@ flowchart TD
     end
 
     subgraph REPORT["Reporting Layer (@goodgirl/reporter)"]
-        PARSER["JSON Telemetry Parser"]
+        PARSER["JSON Telemetry & Flaky Test Parser"]
         TERM["ANSI Terminal Summary"]
-        HTML["Native HTML Report"]
-        JSON["Structured JSON Report"]
+        HTML["Interactive HTML Report Viewer"]
+        JSON["Structured JSON Telemetry"]
     end
 
     BIN --> ORCH
     MENU --> ORCH
+    TRACE_CMD --> ORCH
+    CODEGEN_CMD --> ORCH
     CFG --> ORCH
     DOC -.-> BIN
 
     ORCH --> PW
+    PW --> CROSS
+    PW --> DEVICES
     PW --> E2E
     PW --> API
     PW -.-> FIX
+    PW --> INSPECT
 
     PW --> REPORT
     PARSER --> TERM
@@ -329,7 +478,7 @@ goodgirl/
 │   ├── reporter/           # Result parser and ANSI terminal summary formatter
 │   └── shared/             # Domain types, constants, path helpers, custom errors
 ├── examples/
-│   └── sample-project/     # Standalone QA sample project
+│   └── sample-project/     # Standalone QA sample project with POM and route mocking
 ├── .github/workflows/      # Cross-platform matrix CI (Windows, macOS, Linux)
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -346,6 +495,7 @@ goodgirl/
 | `pnpm typecheck` | Runs strict TypeScript type checks across all packages |
 | `pnpm test` | Executes Vitest unit test suites |
 | `pnpm qa` | Runs GoodGirl CLI directly without global installation |
+| `pnpm qa doctor` | Runs environment, browser binary, and configuration diagnostics |
 
 ## Troubleshooting
 
@@ -353,7 +503,7 @@ goodgirl/
 ```text
 Error: Cannot find Playwright browser binary
 ```
-**Resolution**: Run `pnpm exec playwright install chromium`. On Linux runners, use `pnpm exec playwright install --with-deps chromium`.
+**Resolution**: Run `pnpm exec playwright install chromium firefox webkit`. On Linux runners, use `pnpm exec playwright install --with-deps chromium firefox webkit`.
 
 ### Port 4173 Already Bound
 ```text
@@ -371,7 +521,7 @@ pnpm qa test all
 ## Roadmap
 
 - **Phase 1 (Completed)**: Monorepo foundation, Commander CLI, Clack interactive UI, Playwright E2E and API testing, local fixture server, unified reporting, cross-platform CI matrix.
-- **Phase 2 (Next)**: Multi-browser Matrix (Firefox, WebKit), visual regression snapshot testing, execution history database.
+- **Phase 2 (Completed)**: Cross-browser matrix (Chromium, Firefox, WebKit), device emulation presets, debug inspector, interactive UI mode, trace viewer, codegen, network mocking, Page Object Models, custom fixtures, flaky test reporting, and raw argument passthrough.
 - **Phase 3 (Planned)**: Grafana k6 engine integration for performance, spike, and load testing.
 - **Phase 4 (Planned)**: OWASP ZAP engine integration for automated security baseline scanning.
 
