@@ -1,0 +1,36 @@
+{
+  "name": "@goodgirl/playwright",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./fixture-server": {
+      "import": "./dist/fixture-server.js",
+      "types": "./dist/fixture-server.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts src/fixture-server.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/fixture-server.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run src/",
+    "test:e2e": "playwright test --project=e2e",
+    "test:api": "playwright test --project=api",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@goodgirl/shared": "workspace:*",
+    "@playwright/test": "^1.48.2"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
