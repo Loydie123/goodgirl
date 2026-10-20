@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "words": [
+    "automations",
+    "Codegen",
+    "codegen",
+    "esbuild",
+    "goodgirl",
+    "GoodGirl",
+    "GOODGIRL",
+    "LOCALAPPDATA",
+    "lockfile",
+    "nqry",
+    "picocolors",
+    "Playwright",
+    "playwright",
+    "pnpm",
+    "PWDEBUG",
+    "schemastore",
+    "Segoe",
+    "subtask",
+    "subtasks",
+    "testbench",
+    "tsup",
+    "Turborepo",
+    "turborepo",
+    "typecheck",
+    "unarchive",
+    "untracked",
+    "Vitest",
+    "vitest"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/goodgirl-results/**",
+    "**/test-results/**",
+    "pnpm-lock.yaml"
+  ]
+}

@@ -46,9 +46,9 @@ function resolveFixtureServerScript(): string {
     resolve(__dirname, "fixture-server.js"),
     resolve(__dirname, "dist", "fixture-server.js"),
   ];
-  for (const cand of candidates) {
-    if (existsSync(cand)) {
-      return cand;
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
     }
   }
   return resolve(__dirname, "..", "dist", "fixture-server.js");

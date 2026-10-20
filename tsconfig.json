@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "goodgirl.config.ts",
+    "eslint.config.js",
+    "scripts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "goodgirl-results",
+    "apps",
+    "packages",
+    "examples"
+  ]
+}

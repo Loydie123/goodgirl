@@ -43,9 +43,9 @@ export function resolvePlaywrightConfigPath(projectDir: string): string {
     join(projectDir, "playwright.config.js"),
     join(projectDir, "playwright.config.mjs"),
   ];
-  for (const cand of localCandidates) {
-    if (existsSync(cand)) {
-      return cand;
+  for (const candidate of localCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
     }
   }
 
