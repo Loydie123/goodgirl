@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "goodgirl": "./dist/index.js"
+    "goodgirl": "./bin/goodgirl.js"
   },
   "scripts": {
     "build": "tsup",

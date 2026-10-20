@@ -5,6 +5,7 @@
     "automations",
     "Codegen",
     "codegen",
+    "EADDRINUSE",
     "esbuild",
     "goodgirl",
     "GoodGirl",
@@ -28,6 +29,7 @@
     "typecheck",
     "unarchive",
     "untracked",
+    "viewports",
     "Vitest",
     "vitest"
   ],
