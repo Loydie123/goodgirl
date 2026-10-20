@@ -7,6 +7,9 @@ import {
   DEFAULT_JSON_REPORT_NAME,
   DEFAULT_K6_RESULTS_NAME,
   DEFAULT_RESULTS_DIR,
+  DEFAULT_SECURITY_REPORT_HTML,
+  DEFAULT_SECURITY_REPORT_JSON,
+  DEFAULT_SECURITY_RESULTS_NAME,
 } from "./constants.js";
 
 /**
@@ -84,5 +87,26 @@ export function getK6ResultsPaths(
   return {
     resultsDir,
     k6JsonReportPath: join(resultsDir, DEFAULT_K6_RESULTS_NAME),
+  };
+}
+
+/**
+ * Computes standard report and artifact paths for an OWASP ZAP security scan run.
+ */
+export function getSecurityResultsPaths(
+  cwd: string,
+  customResultsDir?: string,
+): {
+  resultsDir: string;
+  securityJsonReportPath: string;
+  securityHtmlReportPath: string;
+  securityResultsJsonPath: string;
+} {
+  const resultsDir = resolve(cwd, customResultsDir ?? DEFAULT_RESULTS_DIR);
+  return {
+    resultsDir,
+    securityJsonReportPath: join(resultsDir, DEFAULT_SECURITY_REPORT_JSON),
+    securityHtmlReportPath: join(resultsDir, DEFAULT_SECURITY_REPORT_HTML),
+    securityResultsJsonPath: join(resultsDir, DEFAULT_SECURITY_RESULTS_NAME),
   };
 }

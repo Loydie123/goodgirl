@@ -21,3 +21,11 @@ export const DEFAULT_TRACE: TraceOption = "retain-on-failure";
 export const DEFAULT_VIDEO: VideoOption = "off";
 export const DEFAULT_BASE_URL = "http://127.0.0.1:4173";
 export const DEFAULT_TEST_DIR = "tests";
+
+export const DEFAULT_ZAP_DOCKER_IMAGE = "ghcr.io/zaproxy/zaproxy:stable";
+export const DEFAULT_ZAP_BARE_DOCKER_IMAGE = "ghcr.io/zaproxy/zaproxy:bare";
+export const DEFAULT_SECURITY_RESULTS_NAME = "zap-results.json";
+export const DEFAULT_SECURITY_REPORT_HTML = "zap-report.html";
+export const DEFAULT_SECURITY_REPORT_JSON = "zap-report.json";
+export const DEFAULT_SECURITY_FAIL_ON_RISK = "High";
+export const DEFAULT_SECURITY_TIMEOUT_SECONDS = 300;
