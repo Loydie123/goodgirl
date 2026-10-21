@@ -72,6 +72,7 @@ export function checkDockerStatus(): {
   installed: boolean;
   running: boolean;
   version?: string;
+  osType?: string;
 } {
   try {
     const versionCheck = spawnSync("docker", ["--version"], {
@@ -87,7 +88,7 @@ export function checkDockerStatus(): {
     const versionStr = versionCheck.stdout.trim();
 
     // Check daemon responsiveness
-    const infoCheck = spawnSync("docker", ["info", "--format", "{{.ServerVersion}}"], {
+    const infoCheck = spawnSync("docker", ["info", "--format", "{{.ServerVersion}} {{.OSType}}"], {
       encoding: "utf-8",
       timeout: 5000,
       stdio: ["ignore", "pipe", "ignore"],
@@ -98,6 +99,7 @@ export function checkDockerStatus(): {
       installed: true,
       running: isRunning,
       version: versionStr,
+      osType: infoCheck.stdout?.trim().split(/\s+/)[1],
     };
   } catch {
     return { installed: false, running: false };
@@ -174,6 +176,11 @@ export function detectZapEnvironmentSync(
       localZapAvailable: true,
       localZapPath: localZap,
     };
+  }
+
+  if (docker.running && docker.osType !== "linux") {
+    return { available: false, engine: "none", details: "ZAP Docker images require Linux containers. Switch Docker Desktop to Linux containers and verify: docker info --format '{{.OSType}}'.",
+      dockerAvailable: true, dockerRunning: true, dockerImageAvailable: false, localZapAvailable: false };
   }
 
   // 2. If Docker daemon is running
@@ -272,6 +279,8 @@ export async function runZapDoctorChecks(
       message: `Found local ZAP binary: ${envInfo.localZapPath}`,
       details: envInfo.version ? `Version: ${envInfo.version}` : undefined,
     });
+  } else if (envInfo.dockerRunning && !envInfo.available) {
+    checks.push({ name: "Docker Container Platform", status: "fail", message: envInfo.details });
   } else if (envInfo.dockerRunning) {
     checks.push({
       name: "Docker Execution Engine",

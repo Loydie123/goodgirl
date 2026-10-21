@@ -1,354 +1,167 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { dirname, join, resolve } from "node:path";
 import { platform } from "node:os";
 import spawn from "cross-spawn";
-import {
-  DEFAULT_RESULTS_DIR,
-  DEFAULT_SECURITY_FAIL_ON_RISK,
-  DEFAULT_SECURITY_TIMEOUT_SECONDS,
-  getSecurityResultsPaths,
-} from "@goodgirl/shared";
-import type {
-  SecurityRunOptions,
-  SecurityRunSummary,
-} from "@goodgirl/shared";
+import { parse, stringify } from "yaml";
+import { DEFAULT_RESULTS_DIR, DEFAULT_SECURITY_FAIL_ON_RISK, DEFAULT_SECURITY_TIMEOUT_SECONDS, getSecurityResultsPaths } from "@goodgirl/shared";
+import type { SecurityRunOptions, SecurityRunSummary } from "@goodgirl/shared";
 import { detectZapEnvironmentSync, getZapInstallInstructions } from "./detector.js";
 import { parseZapJsonReport } from "./parser.js";
 import { buildApiPlan, buildBaselinePlan } from "./plan-builder.js";
 import { validateSecurityPlanSafety } from "./safety.js";
+import type { ZapAutomationPlan } from "./types.js";
 
-/**
- * Normalizes host targets inside a YAML plan for container networking.
- * On macOS and Windows Docker, maps 127.0.0.1 and localhost to host.docker.internal.
- */
-export function adjustPlanForDockerNetworking(planContent: string): string {
-  const os = platform();
-  if (os === "darwin" || os === "win32") {
-    return planContent
-      .replace(/http:\/\/127\.0\.0\.1:/g, "http://host.docker.internal:")
-      .replace(/https:\/\/127\.0\.0\.1:/g, "https://host.docker.internal:")
-      .replace(/http:\/\/localhost:/g, "http://host.docker.internal:")
-      .replace(/https:\/\/localhost:/g, "https://host.docker.internal:");
-  }
-  return planContent;
+export function adjustPlanForDockerNetworking(content: string): string {
+  return platform() === "darwin" || platform() === "win32"
+    ? content.replace(/(https?:\/\/)(127\.0\.0\.1|localhost)(?=[:/]|$)/g, "$1host.docker.internal")
+    : content;
 }
 
-/**
- * Executes an OWASP ZAP Automation Framework security scan.
- */
-export async function runZapAutomation(
-  options: SecurityRunOptions = {},
-): Promise<SecurityRunSummary> {
+/** Each invocation owns a fresh directory, including the plan and all report jobs. */
+export async function runZapAutomation(options: SecurityRunOptions = {}): Promise<SecurityRunSummary> {
   const startTime = Date.now();
-  const cwd = options.cwd ?? process.cwd();
+  const cwd = resolve(options.cwd ?? process.cwd());
   const resultsDir = resolve(cwd, options.reportDir ?? DEFAULT_RESULTS_DIR);
-  if (!existsSync(resultsDir)) {
-    mkdirSync(resultsDir, { recursive: true });
-  }
-  try {
-    chmodSync(resultsDir, 0o777);
-  } catch {
-    // Ignore permissions errors on platforms without POSIX chmod
-  }
-
   const paths = getSecurityResultsPaths(cwd, options.reportDir);
-
-  // Clean stale reports before run
-  if (existsSync(paths.securityJsonReportPath)) {
-    try {
-      unlinkSync(paths.securityJsonReportPath);
-    } catch {
-      // Ignore
-    }
+  const runId = randomUUID();
+  const runDir = join(resultsDir, "zap-runs", runId);
+  mkdirSync(runDir, { recursive: true });
+  // Invalidate the previous latest result even when preparation fails.
+  writeFileSync(paths.securityResultsJsonPath, JSON.stringify({ success: false, status: "incomplete", runDir,
+    failureReason: "Scan preparation has not completed; no current report is available." }, null, 2));
+  if (options.jsonReportPath) {
+    const destination = resolve(cwd, options.jsonReportPath);
+    mkdirSync(dirname(destination), { recursive: true });
+    copyFileSync(paths.securityResultsJsonPath, destination);
   }
-
-  // 1. Detect engine
-  const envInfo = detectZapEnvironmentSync(options.zapPath, options.dockerImage);
-  if (!envInfo.available || envInfo.engine === "none") {
-    const install = getZapInstallInstructions();
-    const errorMsg =
-      `OWASP ZAP Engine Unavailable:\n` +
-      `Neither a local ZAP installation nor Docker daemon was found.\n\n` +
-      `Recommended setup for ${install.platform}:\n` +
-      install.instructions.map((i) => `  - ${i}`).join("\n") +
-      `\nDocumentation: ${install.docsUrl}`;
-    throw new Error(errorMsg);
+  if (options.htmlReportPath && existsSync(resolve(cwd, options.htmlReportPath))) unlinkSync(resolve(cwd, options.htmlReportPath));
+  const engine = detectZapEnvironmentSync(options.zapPath, options.dockerImage);
+  if (!engine.available || engine.engine === "none") {
+    throw new Error(`OWASP ZAP Engine Unavailable: ${engine.details}\n${getZapInstallInstructions().instructions.join("\n")}`);
   }
-
-  // 2. Resolve or generate Automation Framework plan
-  let planFilePath = "";
-  let isTempPlan = false;
-  let rawPlanContent = "";
-
+  const docker = engine.engine === "docker";
+  const reportDir = docker ? "/zap/reports" : runDir;
+  let content: string;
   if (options.planPath) {
-    const candidate = isAbsolute(options.planPath) ? options.planPath : resolve(cwd, options.planPath);
-    if (!existsSync(candidate)) {
-      throw new Error(`ZAP Automation Framework plan not found at: "${candidate}"`);
-    }
-    planFilePath = candidate;
-    rawPlanContent = readFileSync(planFilePath, "utf-8");
+    const path = resolve(cwd, options.planPath);
+    if (!existsSync(path)) throw new Error(`ZAP Automation Framework plan not found at: "${path}"`);
+    content = readFileSync(path, "utf8");
   } else if (options.mode === "api" || options.apiSpec) {
-    const spec = options.apiSpec ?? "";
-    if (!spec) {
-      throw new Error("An OpenAPI specification path or URL must be provided for API security testing.");
+    let spec = options.apiSpec;
+    if (!spec) throw new Error("An OpenAPI file or URL is required.");
+    if (!/^https?:\/\//.test(spec)) {
+      const destination = join(runDir, "openapi" + (spec.endsWith(".json") ? ".json" : ".yaml"));
+      copyFileSync(resolve(cwd, spec), destination);
+      spec = docker ? `/zap/reports/${destination.split(/[\\/]/).pop()}` : destination;
     }
-    rawPlanContent = buildApiPlan({
-      apiFileOrUrl: spec,
-      targetUrl: options.target,
-      reportDir: "/zap/wrk/goodgirl-results",
-      reportFile: "zap-report",
-    });
-    planFilePath = join(resultsDir, ".goodgirl-zap-api-plan.yaml");
-    writeFileSync(planFilePath, rawPlanContent, "utf-8");
-    isTempPlan = true;
+    content = buildApiPlan({ apiFileOrUrl: spec, targetUrl: options.target, reportDir });
   } else {
-    // Default: Baseline passive scan
-    const target = options.target ?? "http://127.0.0.1:4173";
-    rawPlanContent = buildBaselinePlan({
-      targetUrl: target,
-      reportDir: "/zap/wrk/goodgirl-results",
-      reportFile: "zap-report",
-    });
-    planFilePath = join(resultsDir, ".goodgirl-zap-baseline-plan.yaml");
-    writeFileSync(planFilePath, rawPlanContent, "utf-8");
-    isTempPlan = true;
+    content = buildBaselinePlan({ targetUrl: options.target ?? "http://127.0.0.1:4173", reportDir,
+      maxDurationMins: options.spiderDuration });
   }
-
-  // 3. Safety and Target Verification
-  const safety = validateSecurityPlanSafety(rawPlanContent, {
-    allowedTargets: options.target ? [options.target] : [],
-    allowExternal: options.allowExternal,
-    allowActive: options.activeScan,
+  const safety = validateSecurityPlanSafety(content, { allowExternal: options.allowExternal, allowActive: options.activeScan });
+  if (!safety.safe) throw new Error(safety.reason ?? "Security guardrail violation");
+  const plan = parse(content) as ZapAutomationPlan;
+  if (!plan || !Array.isArray(plan.jobs)) throw new Error("Invalid AF plan: expected jobs array.");
+  // Preserve workload jobs. Redirect existing report jobs, never invent missing evidence jobs.
+  for (const job of plan.jobs) {
+    if (job.type === "report") {
+      job.parameters = { ...job.parameters, reportDir };
+      if (["traditional-json", "traditional-html"].includes(String(job.parameters.template))) {
+        job.parameters.reportFile = "zap-report";
+      }
+    }
+  }
+  const planPath = join(runDir, "plan.yaml");
+  content = stringify(plan);
+  writeFileSync(planPath, docker ? adjustPlanForDockerNetworking(content) : content);
+  const container = `goodgirl-zap-${runId}`;
+  const args = docker ? ["run", "--rm", "--name", container, "-u", "0:0", "-w", "/zap/wrk",
+    "-v", `${cwd}:/zap/wrk:rw`, "-v", `${runDir}:/zap/reports:rw`,
+    ...(platform() === "linux" ? ["--network=host"] : ["--add-host=host.docker.internal:host-gateway"]),
+    ...Object.entries(options.env ?? {}).flatMap(([k, v]) => ["-e", `${k}=${v}`]),
+    engine.image!, "zap.sh", "-cmd", "-autorun", "/zap/reports/plan.yaml"]
+    : ["-cmd", "-autorun", planPath];
+  args.push(...(options.passthroughArgs ?? []));
+  let exitCode = 1;
+  let signal: string | null = null;
+  let interrupted = false;
+  let timedOut = false;
+  let executionError: string | undefined;
+  let output = "";
+  const proc = spawn(docker ? "docker" : engine.command!, args, {
+    cwd, stdio: options.raw ? "inherit" : ["ignore", "pipe", "pipe"], env: { ...process.env, ...options.env },
   });
-
-  if (!safety.safe) {
-    if (isTempPlan && existsSync(planFilePath)) {
-      try {
-        unlinkSync(planFilePath);
-      } catch {
-        // Ignore
-      }
-    }
-    throw new Error(safety.reason ?? "Security Guardrail Violation");
-  }
-
-  // 4. Prepare execution arguments based on engine
-  let execCommand = "";
-  let execArgs: string[] = [];
-  const timeoutMs = (options.timeoutSeconds ?? DEFAULT_SECURITY_TIMEOUT_SECONDS) * 1000;
-
-  if (envInfo.engine === "docker") {
-    // If executing in Docker on Mac/Windows, adjust local addresses and save docker-ready plan
-    const dockerPlanContent = adjustPlanForDockerNetworking(rawPlanContent);
-    const dockerPlanFile = join(cwd, ".goodgirl-docker-zap-plan.yaml");
-    writeFileSync(dockerPlanFile, dockerPlanContent, "utf-8");
-    try {
-      chmodSync(dockerPlanFile, 0o666);
-    } catch {
-      // Ignore permissions errors
-    }
-
-    // Relative path inside container mount /zap/wrk
-    const relPlanPath = relative(cwd, dockerPlanFile).replace(/\\/g, "/");
-
-    execCommand = "docker";
-    execArgs = [
-      "run",
-      "--rm",
-      "-u",
-      "0:0",
-      "-w",
-      "/zap/wrk",
-      "-v",
-      `${cwd}:/zap/wrk/:rw`,
-    ];
-
-    const os = platform();
-    if (os === "linux") {
-      execArgs.push("--network=host");
-    } else {
-      execArgs.push("--add-host=host.docker.internal:host-gateway");
-    }
-
-    // Pass environment variables to Docker if provided
-    if (options.env) {
-      for (const [k, v] of Object.entries(options.env)) {
-        execArgs.push("-e", `${k}=${v}`);
-      }
-    }
-
-    execArgs.push(
-      envInfo.image ?? "ghcr.io/zaproxy/zaproxy:stable",
-      "zap.sh",
-      "-cmd",
-      "-autorun",
-      `/zap/wrk/${relPlanPath}`,
-    );
-
-    if (options.passthroughArgs && options.passthroughArgs.length > 0) {
-      execArgs.push(...options.passthroughArgs);
-    }
-  } else {
-    // Local ZAP binary execution
-    execCommand = envInfo.command ?? "zap.sh";
-    execArgs = ["-cmd", "-autorun", planFilePath];
-
-    if (options.passthroughArgs && options.passthroughArgs.length > 0) {
-      execArgs.push(...options.passthroughArgs);
-    }
-  }
-
-  // 5. Execute process with live logging and timeout
-  let exitCode = 0;
-  let executionError: Error | null = null;
-  let stdoutBuffer = "";
-  let stderrBuffer = "";
-
-  try {
-    const proc = spawn(execCommand, execArgs, {
-      cwd,
-      stdio: options.raw ? "inherit" : ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        ...(options.env ?? {}),
-      },
-    });
-
-    if (!options.raw && proc.stdout) {
-      proc.stdout.on("data", (chunk: Buffer) => {
-        stdoutBuffer += chunk.toString("utf-8");
-      });
-    }
-
-    if (!options.raw && proc.stderr) {
-      proc.stderr.on("data", (chunk: Buffer) => {
-        stderrBuffer += chunk.toString("utf-8");
-      });
-    }
-
-    const timer = setTimeout(() => {
-      proc.kill("SIGTERM");
-      setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill("SIGKILL");
-        }
-      }, 3000);
-    }, timeoutMs);
-
-    exitCode = await new Promise<number>((resolveExit, rejectExit) => {
-      proc.on("close", (code) => {
-        clearTimeout(timer);
-        resolveExit(code ?? 0);
-      });
-      proc.on("error", (err) => {
-        clearTimeout(timer);
-        rejectExit(err);
-      });
-    });
-  } catch (err) {
-    executionError = err instanceof Error ? err : new Error(String(err));
-    exitCode = 1;
-  }
-
-  // Clean up temporary plans
-  if (isTempPlan && existsSync(planFilePath)) {
-    try {
-      unlinkSync(planFilePath);
-    } catch {
-      // Ignore
-    }
-  }
-
-  const dockerTemp = join(cwd, ".goodgirl-docker-zap-plan.yaml");
-  if (existsSync(dockerTemp)) {
-    try {
-      unlinkSync(dockerTemp);
-    } catch {
-      // Ignore
-    }
-  }
-
-  const durationMs = Date.now() - startTime;
-
-  // 6. Parse results
-  const reportJsonCandidate = paths.securityJsonReportPath;
-  const reportGenerated = existsSync(reportJsonCandidate);
-
-  // Ensure output files are accessible cross-platform
-  try {
-    if (reportGenerated) {
-      chmodSync(reportJsonCandidate, 0o666);
-    }
-    if (existsSync(paths.securityHtmlReportPath)) {
-      chmodSync(paths.securityHtmlReportPath, 0o666);
-    }
-  } catch {
-    // Ignore permissions errors
-  }
-
-  let alerts: SecurityRunSummary["alerts"] = [];
-  let riskSummary: SecurityRunSummary["riskSummary"] = {
-    high: 0,
-    medium: 0,
-    low: 0,
-    informational: 0,
-    total: 0,
+  const capture = (chunk: Buffer) => { output = (output + chunk.toString()).slice(-16000); };
+  proc.stdout?.on("data", capture);
+  proc.stderr?.on("data", capture);
+  let forceTimer: ReturnType<typeof setTimeout> | undefined;
+  const stop = (sig: NodeJS.Signals) => {
+    if (docker) spawn.sync("docker", ["rm", "-f", container], { timeout: 5000, stdio: "ignore" });
+    if (platform() === "win32" && proc.pid) spawn.sync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { timeout: 5000, stdio: "ignore" });
+    else proc.kill(sig);
+    forceTimer = setTimeout(() => { if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGKILL"); }, 3000);
   };
-  let thresholdPassed = true;
-
-  if (reportGenerated) {
-    const parsed = parseZapJsonReport(reportJsonCandidate, {
-      failOnRisk: options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK,
+  const onInterrupt = () => { interrupted = true; stop("SIGINT"); };
+  const onTerminate = () => { interrupted = true; stop("SIGTERM"); };
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onTerminate);
+  const timer = setTimeout(() => { timedOut = true; stop("SIGTERM"); },
+    (options.timeoutSeconds ?? DEFAULT_SECURITY_TIMEOUT_SECONDS) * 1000);
+  try {
+    await new Promise<void>((done) => {
+      proc.on("error", (error) => { executionError = error.message; done(); });
+      proc.on("close", (code, sig) => { exitCode = code ?? 1; signal = sig; done(); });
     });
-    alerts = parsed.alerts;
-    riskSummary = parsed.riskSummary;
-    thresholdPassed = parsed.thresholdPassed;
-  } else if (!executionError && exitCode === 0) {
-    // If no alerts file was written, ZAP completed cleanly with 0 alerts
-    thresholdPassed = true;
-  } else {
-    thresholdPassed = false;
+  } finally {
+    clearTimeout(timer);
+    if (forceTimer) clearTimeout(forceTimer);
+    process.removeListener("SIGINT", onInterrupt);
+    process.removeListener("SIGTERM", onTerminate);
   }
-
-  // ZAP AF exit code 0 = clean, exit code 2 = completed with warnings/alerts
-  const zapCompleted = (exitCode === 0 || exitCode === 2) && reportGenerated;
-  const success = (zapCompleted || exitCode === 0) && thresholdPassed && !executionError && (reportGenerated || exitCode === 0);
-
+  const jsonPath = join(runDir, "zap-report.json");
+  const htmlPath = join(runDir, "zap-report.html");
+  let parsed: ReturnType<typeof parseZapJsonReport> | undefined;
+  let reportError: string | undefined;
+  if (existsSync(jsonPath)) {
+    try { parsed = parseZapJsonReport(jsonPath, { failOnRisk: options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK }); }
+    catch (error) { reportError = error instanceof Error ? error.message : String(error); }
+  }
+  let status: NonNullable<SecurityRunSummary["status"]>;
+  let failureReason: string | undefined;
+  if (timedOut || interrupted || signal) {
+    status = "incomplete";
+    failureReason = timedOut ? "ZAP scan timed out; completion is not verified." : "ZAP scan was interrupted; completion is not verified.";
+  } else if (executionError || ![0, 2].includes(exitCode)) {
+    status = "engine-failure";
+    failureReason = executionError ?? `ZAP execution failed with exit code ${exitCode}: ${output.trim()}`;
+  } else if (!parsed) {
+    status = reportError ? "malformed-report" : "missing-report";
+    failureReason = reportError ?? "Incomplete scan: required current-run ZAP JSON report was not generated. Include a traditional-json report job in the AF plan.";
+  } else if (!parsed.thresholdPassed) {
+    status = "risk-failure";
+    failureReason = `Security risk threshold breached (${options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK}).`;
+  } else status = parsed.riskSummary.total ? "findings" : "completed";
   const summary: SecurityRunSummary = {
-    target: options.target,
-    planPath: options.planPath ?? planFilePath,
-    durationMs,
-    timestamp: new Date().toISOString(),
-    exitCode,
-    success,
-    thresholdPassed,
-    riskSummary,
-    alerts,
-    reportPathJson: reportGenerated ? paths.securityJsonReportPath : undefined,
-    reportPathHtml: existsSync(paths.securityHtmlReportPath) ? paths.securityHtmlReportPath : undefined,
-    engine: {
-      type: envInfo.engine,
-      version: envInfo.version,
-      image: envInfo.image,
-      command: envInfo.command,
-      details: envInfo.details,
-    },
-    failureReason: executionError
-      ? executionError.message
-      : !reportGenerated && exitCode !== 0
-        ? `ZAP execution failed with exit code ${exitCode} and no report was generated${stderrBuffer ? ": " + stderrBuffer.trim() : stdoutBuffer ? ": " + stdoutBuffer.trim() : ""}`
-        : !thresholdPassed
-          ? `Security risk threshold breached (Risk level "${options.failOnRisk ?? DEFAULT_SECURITY_FAIL_ON_RISK}" or higher found)`
-          : undefined,
+    target: options.target, planPath: options.planPath ?? planPath, runDir,
+    durationMs: Date.now() - startTime, timestamp: new Date().toISOString(), exitCode, signal, status,
+    success: status === "completed" || status === "findings",
+    thresholdPassed: parsed?.thresholdPassed ?? false, riskSummary: parsed?.riskSummary ?? null, alerts: parsed?.alerts ?? [],
+    reportPathJson: parsed ? jsonPath : undefined,
+    reportPathHtml: parsed && existsSync(htmlPath) ? htmlPath : undefined,
+    engine: { type: engine.engine, command: engine.command, version: engine.version, image: engine.image, details: engine.details },
+    failureReason,
   };
-
-  // Persist summary
-  writeFileSync(paths.securityResultsJsonPath, JSON.stringify(summary, null, 2), "utf-8");
-  try {
-    chmodSync(paths.securityResultsJsonPath, 0o666);
-  } catch {
-    // Ignore permissions errors
+  if (options.htmlReportPath && summary.reportPathHtml) {
+    const destination = resolve(cwd, options.htmlReportPath); mkdirSync(dirname(destination), { recursive: true });
+    copyFileSync(summary.reportPathHtml, destination);
   }
-
+  writeFileSync(join(runDir, "results.json"), JSON.stringify(summary, null, 2));
+  writeFileSync(paths.securityResultsJsonPath, JSON.stringify(summary, null, 2));
+  if (options.jsonReportPath) {
+    const destination = resolve(cwd, options.jsonReportPath); mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, JSON.stringify(summary, null, 2));
+  }
   return summary;
 }

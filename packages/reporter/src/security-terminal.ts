@@ -52,7 +52,7 @@ export function formatSecurityTerminalSummary(summary: SecurityRunSummary): stri
 
   const thresholdLabel = summary.thresholdPassed
     ? pc.green("✔ Satisfied")
-    : summary.riskSummary.total > 0
+    : (summary.riskSummary?.total ?? 0) > 0
       ? pc.red("✖ Threshold Breached")
       : pc.red("✖ Incomplete / No Report");
 
@@ -63,9 +63,10 @@ export function formatSecurityTerminalSummary(summary: SecurityRunSummary): stri
     (summary.engine.version ? ` [${summary.engine.version}]` : ""),
   );
   lines.push(`  ${pc.bold("Overall Status:")}    ${statusLabel}`);
+  if (summary.status) lines.push(`  ${pc.bold("Scan State:")}        ${summary.status}`);
   lines.push(`  ${pc.bold("Risk Threshold:")}    ${thresholdLabel}`);
   if (summary.failureReason) {
-    lines.push(`  ${pc.bold("Failure Reason:")}    ${pc.red(summary.failureReason)}`);
+    lines.push(`  ${pc.bold("Failure Reason:")}    ${pc.red(redactSensitiveData(summary.failureReason))}`);
   }
   lines.push(`  ${pc.bold("Scan Duration:")}     ${formatMs(summary.durationMs)}`);
 
@@ -73,11 +74,16 @@ export function formatSecurityTerminalSummary(summary: SecurityRunSummary): stri
   lines.push(line);
   lines.push(` ${pc.bold("Risk Summary:")}`);
   const r = summary.riskSummary;
+  if (r) {
   lines.push(`    ${pc.red(pc.bold("● HIGH:"))}           ${r.high > 0 ? pc.red(pc.bold(String(r.high))) : pc.dim("0")}`);
   lines.push(`    ${pc.yellow(pc.bold("● MEDIUM:"))}         ${r.medium > 0 ? pc.yellow(pc.bold(String(r.medium))) : pc.dim("0")}`);
   lines.push(`    ${pc.cyan(pc.bold("● LOW:"))}            ${r.low > 0 ? pc.cyan(String(r.low)) : pc.dim("0")}`);
   lines.push(`    ${pc.blue(pc.bold("● INFORMATIONAL:"))}  ${r.informational > 0 ? pc.blue(String(r.informational)) : pc.dim("0")}`);
   lines.push(`    ${pc.bold("Total Findings:")}    ${r.total}`);
+
+  } else {
+    lines.push("    Findings unavailable: no valid current-run report.");
+  }
 
   // Findings list (High and Medium alerts prioritized, plus Low if under 10 items)
   if (summary.alerts.length > 0) {

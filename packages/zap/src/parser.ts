@@ -82,11 +82,28 @@ export function parseZapJsonReport(
     throw new Error(`Failed to parse ZAP JSON report: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  if (!rawReport || typeof rawReport !== "object" || !Array.isArray(rawReport.site) &&
+      (!rawReport.site || typeof rawReport.site !== "object")) {
+    throw new Error("Invalid ZAP report: expected a traditional-json site collection.");
+  }
+
   const sites: ZapRawSite[] = Array.isArray(rawReport.site)
     ? rawReport.site
     : rawReport.site
       ? [rawReport.site]
       : [];
+
+  for (const site of sites) {
+    if (!site || typeof site !== "object" || !Array.isArray(site.alerts)) {
+      throw new Error("Invalid ZAP report: each site must contain an alerts array.");
+    }
+    for (const alert of site.alerts) {
+      if (!alert || !/^[0-3]$/.test(String(alert.riskcode)) || !alert.pluginid ||
+          !(alert.alert || alert.name) || (alert.instances !== undefined && !Array.isArray(alert.instances))) {
+        throw new Error("Invalid ZAP report: malformed alert or severity.");
+      }
+    }
+  }
 
   const alertMap = new Map<string, SecurityAlert>();
 

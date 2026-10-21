@@ -21,6 +21,7 @@ export interface WebServerConfig {
 }
 
 export interface K6Config {
+  allowExternal?: boolean;
   binaryPath?: string;
   allowedTargets?: string[];
   allowExternalTargets?: boolean;
@@ -67,7 +68,8 @@ export type ReportFormat = "html" | "json";
 export interface TestRunOptions {
   type: TestType;
   files?: string[];
-  browser?: BrowserType;
+  browser?: BrowserType | "all";
+  playwrightConfigPath?: string;
   project?: string;
   projects?: string[];
   headed?: boolean;
@@ -247,6 +249,9 @@ export interface SecurityEngineInfo {
 }
 
 export interface SecurityRunOptions {
+  spiderDuration?: number;
+  jsonReportPath?: string;
+  htmlReportPath?: string;
   target?: string;
   planPath?: string;
   apiSpec?: string;
@@ -275,7 +280,10 @@ export interface SecurityRunSummary {
   exitCode: number;
   success: boolean;
   thresholdPassed: boolean;
-  riskSummary: SecurityRiskSummary;
+  riskSummary: SecurityRiskSummary | null;
+  status?: "completed" | "findings" | "risk-failure" | "engine-failure" | "incomplete" | "missing-report" | "malformed-report";
+  signal?: string | null;
+  runDir?: string;
   alerts: SecurityAlert[];
   reportPathJson?: string;
   reportPathHtml?: string;

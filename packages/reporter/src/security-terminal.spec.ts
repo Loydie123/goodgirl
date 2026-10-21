@@ -65,3 +65,14 @@ describe("Security Terminal Reporter", () => {
     expect(output).toContain("zap-report.html");
   });
 });
+
+it("shows unknown findings and redacts failure details when evidence is missing", () => {
+  const summary: SecurityRunSummary = { durationMs: 1, timestamp: "", exitCode: 1, success: false,
+    thresholdPassed: false, riskSummary: null, alerts: [], engine: { type: "local" },
+    failureReason: "Bearer SYNTHETIC_SECRET password=TEST_ONLY" };
+  const output = formatSecurityTerminalSummary(summary);
+  expect(output).toContain("Findings unavailable");
+  expect(output).not.toContain("Total Findings:");
+  expect(output).not.toContain("SYNTHETIC_SECRET");
+  expect(output).not.toContain("TEST_ONLY");
+});

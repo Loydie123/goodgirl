@@ -15,6 +15,7 @@ import {
 } from "@goodgirl/shared";
 
 export interface CliSecurityOptions {
+  passthroughArgs?: string[];
   target?: string;
   spiderDuration?: string | number;
   spec?: string;
@@ -71,10 +72,14 @@ export async function executeSecurityBaselineCommand(
 
   const runOpts: SecurityRunOptions = {
     mode: "baseline",
+    spiderDuration: options.spiderDuration === undefined ? undefined : Number(options.spiderDuration),
     target: targetUrl,
     failOnRisk: options.failOn,
     allowExternal: options.allowExternal || options.authorized,
     raw: options.raw,
+    passthroughArgs: options.passthroughArgs,
+    jsonReportPath: options.jsonReport,
+    htmlReportPath: options.htmlReport,
     configPath: options.config,
     dockerImage: options.dockerImage,
     zapPath: options.zapPath,
@@ -84,7 +89,7 @@ export async function executeSecurityBaselineCommand(
   try {
     const summary = await runSecurityTest(runOpts);
     printSecurityTerminalSummary(summary);
-    return summary.success ? 0 : 1;
+    return summary.success ? 0 : (summary.exitCode || 1);
   } catch (err) {
     console.error(pc.red(`\n✖ Security Test Error: ${err instanceof Error ? err.message : String(err)}\n`));
     return 1;
@@ -109,6 +114,9 @@ export async function executeSecurityApiCommand(
     failOnRisk: options.failOn,
     allowExternal: options.allowExternal || options.authorized,
     raw: options.raw,
+    passthroughArgs: options.passthroughArgs,
+    jsonReportPath: options.jsonReport,
+    htmlReportPath: options.htmlReport,
     configPath: options.config,
     dockerImage: options.dockerImage,
     zapPath: options.zapPath,
@@ -118,7 +126,7 @@ export async function executeSecurityApiCommand(
   try {
     const summary = await runSecurityTest(runOpts);
     printSecurityTerminalSummary(summary);
-    return summary.success ? 0 : 1;
+    return summary.success ? 0 : (summary.exitCode || 1);
   } catch (err) {
     console.error(pc.red(`\n✖ Security Test Error: ${err instanceof Error ? err.message : String(err)}\n`));
     return 1;
@@ -143,6 +151,9 @@ export async function executeSecurityRunCommand(
     failOnRisk: options.failOn,
     allowExternal: options.allowExternal || options.authorized,
     raw: options.raw,
+    passthroughArgs: options.passthroughArgs,
+    jsonReportPath: options.jsonReport,
+    htmlReportPath: options.htmlReport,
     configPath: options.config,
     dockerImage: options.dockerImage,
     zapPath: options.zapPath,
@@ -152,7 +163,7 @@ export async function executeSecurityRunCommand(
   try {
     const summary = await runSecurityTest(runOpts);
     printSecurityTerminalSummary(summary);
-    return summary.success ? 0 : 1;
+    return summary.success ? 0 : (summary.exitCode || 1);
   } catch (err) {
     console.error(pc.red(`\n✖ Security Test Error: ${err instanceof Error ? err.message : String(err)}\n`));
     return 1;
@@ -164,9 +175,9 @@ export async function executeSecurityReportCommand(
 ): Promise<number> {
   const cwd = process.cwd();
   const { config } = await loadGoodGirlConfig(cwd, options.config);
-  const { securityResultsJsonPath, securityHtmlReportPath } = getSecurityResultsPaths(
+  const { securityResultsJsonPath } = getSecurityResultsPaths(
     cwd,
-    config.resultsDir,
+    config.security?.resultsDir ?? config.resultsDir,
   );
 
   const format = options.format === "json" ? "json" : "html";
@@ -190,8 +201,13 @@ export async function executeSecurityReportCommand(
     }
   }
 
+  // Follow the latest run ownership record, never a legacy HTML filename.
+  let securityHtmlReportPath: string | undefined;
+  if (existsSync(securityResultsJsonPath)) {
+    try { securityHtmlReportPath = JSON.parse(readFileSync(securityResultsJsonPath, "utf8")).reportPathHtml; } catch { /* Report diagnostic below */ }
+  }
   // HTML format
-  if (!existsSync(securityHtmlReportPath)) {
+  if (!securityHtmlReportPath || !existsSync(securityHtmlReportPath)) {
     console.error(
       pc.red(`\n✖ No security HTML report found at "${securityHtmlReportPath}". Run security tests first.\n`),
     );
