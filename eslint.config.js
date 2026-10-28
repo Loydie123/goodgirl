@@ -29,7 +29,7 @@ export default tsPlugin.config(
     },
   },
   {
-    files: ["examples/k6/**/*.js"],
+    files: ["examples/k6/**/*.js", "examples/black-box/templates/qa/smoke.js"],
     languageOptions: {
       globals: {
         __ENV: "readonly",

@@ -72,7 +72,7 @@ describe("Playwright Argument Builder", () => {
       headed: true,
     });
     expect(args).toContain("--project=e2e");
-    expect(args).toContain("--browser=firefox");
+    expect(args).not.toContain("--browser=firefox"); // applied to config to preserve named projects
     expect(args).toContain("--workers=2");
     expect(args).toContain("--grep=auth");
     expect(args).toContain("--grep-invert=slow");

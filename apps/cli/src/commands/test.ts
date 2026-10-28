@@ -29,6 +29,7 @@ export interface CliTestOptions {
   trace?: string;
   video?: string;
   config?: string;
+  playwrightConfig?: string;
   passthroughArgs?: string[];
 }
 
@@ -85,6 +86,7 @@ export async function executeTestCommand(
     video: options.video as VideoOption | undefined,
     passthroughArgs: options.passthroughArgs,
     configPath: options.config,
+    playwrightConfigPath: options.playwrightConfig,
     cwd: process.cwd(),
   };
 

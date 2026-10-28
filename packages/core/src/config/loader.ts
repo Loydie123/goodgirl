@@ -30,8 +30,8 @@ function applyEnvironmentOverrides(rawConfig: Record<string, unknown>): Record<s
     }
   }
   if (process.env.GOODGIRL_WORKERS) {
-    const parsed = Number.parseInt(process.env.GOODGIRL_WORKERS, 10);
-    merged.workers = Number.isNaN(parsed) ? process.env.GOODGIRL_WORKERS : parsed;
+    const value = process.env.GOODGIRL_WORKERS;
+    merged.workers = value.endsWith("%") ? value : Number(value);
   }
   if (process.env.GOODGIRL_FULLY_PARALLEL) {
     merged.fullyParallel =
@@ -48,6 +48,13 @@ function applyEnvironmentOverrides(rawConfig: Record<string, unknown>): Record<s
     merged.screenshots = process.env.GOODGIRL_SCREENSHOTS;
   }
 
+  if (process.env.GOODGIRL_ALLOW_EXTERNAL !== undefined) {
+    if (!["true", "false"].includes(process.env.GOODGIRL_ALLOW_EXTERNAL)) throw new ConfigError("GOODGIRL_ALLOW_EXTERNAL must be true or false.");
+    const allow = process.env.GOODGIRL_ALLOW_EXTERNAL === "true";
+    merged.k6 = { ...(merged.k6 as object), allowExternalTargets: allow };
+    merged.security = { ...(merged.security as object), allowExternal: allow };
+  }
+  if (process.env.GOODGIRL_SECURITY_FAIL_ON) merged.security = { ...(merged.security as object), failOnRisk: process.env.GOODGIRL_SECURITY_FAIL_ON };
   return merged;
 }
 

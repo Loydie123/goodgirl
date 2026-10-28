@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import spawn from "cross-spawn";
+const spawnSync = spawn.sync;
 import { existsSync, mkdirSync, rmdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
