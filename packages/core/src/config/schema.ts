@@ -34,10 +34,12 @@ export const k6ConfigSchema = z
   .object({
     binaryPath: z.string().optional(),
     allowedTargets: z.array(z.string()).optional(),
-    allowExternalTargets: z.boolean().default(false),
+    allowExternalTargets: z.boolean().optional(),
+    allowExternal: z.boolean().optional(),
     defaultVUs: z.number().int().positive().optional(),
     defaultDuration: z.string().optional(),
     summaryTrendStats: z.array(z.string()).optional(),
+    resultsDir: z.string().optional(),
   })
   .optional();
 
@@ -62,7 +64,7 @@ export const goodGirlConfigSchema = z.object({
   projects: z.array(browserProjectSchema).optional(),
   timeout: z.number().int().positive().default(DEFAULT_TIMEOUT_MS),
   retries: z.number().int().min(0).default(DEFAULT_RETRIES),
-  workers: z.union([z.number().int().positive(), z.string()]).optional(),
+  workers: z.union([z.number().int().positive(), z.string().regex(/^(?:[1-9]\d?|100)%$/)]).optional(),
   fullyParallel: z.boolean().optional(),
   screenshots: z.enum(["off", "on", "only-on-failure"]).default(DEFAULT_SCREENSHOT),
   trace: z

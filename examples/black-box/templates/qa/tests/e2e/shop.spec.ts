@@ -1,0 +1,4 @@
+import {test,expect,type Page} from '@playwright/test';
+class Shop {constructor(readonly page:Page){} async open(){await this.page.goto('/')} get status(){return this.page.locator('#status')}}
+test('login with POM and session',async({page,context})=>{const shop=new Shop(page);await shop.open();await expect(page.getByRole('heading')).toHaveText('Independent QA Shop');await page.getByLabel('User',{exact:true}).fill('qa');await page.getByLabel('Password').fill('local-test-only');await page.getByRole('button',{name:'Login',exact:true}).click();await expect(shop.status).toHaveText('Signed in');expect((await context.request.get('/api/me')).status()).toBe(200)});
+test('network mock',async({page})=>{await page.route('**/api/items',r=>r.fulfill({json:[{id:7,name:'Mock tea'}]}));await page.goto('/');await page.getByText('Fetch items',{exact:true}).click();await expect(page.locator('#status')).toContainText('Mock tea')});

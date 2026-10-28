@@ -1,69 +1,153 @@
-# GoodGirl CLI — Native Grafana k6 Performance Testing
+# GoodGirl CLI — Load Testing Guide (Grafana k6)
 
-This directory contains executable native Grafana k6 performance testing scripts designed to run against the hermetic GoodGirl test bench fixture or custom environments.
+Welcome to the GoodGirl Load Testing Guide! This folder contains ready-to-use **Grafana k6** scripts so you can test the speed, stability, and capacity of your website or API in minutes.
 
-## Available Workloads
+---
 
-| Script | Workload Type | Description |
-| :--- | :--- | :--- |
-| [`smoke.js`](file:///Users/loyd/goodgirl/examples/k6/smoke.js) | Smoke Validation | Fast, minimal 1 VU check against `/api/health` and `/api/users`. |
-| [`load.js`](file:///Users/loyd/goodgirl/examples/k6/load.js) | Ramping Load | Multi-stage ramp-up, steady state, and ramp-down with POST requests. |
-| [`stress.js`](file:///Users/loyd/goodgirl/examples/k6/stress.js) | Stress Testing | Higher concurrency (up to 15 VUs) to test system limits. |
-| [`spike.js`](file:///Users/loyd/goodgirl/examples/k6/spike.js) | Spike Testing | Sharp sudden surge in virtual users (20 VUs) to test elasticity and recovery. |
-| [`soak.js`](file:///Users/loyd/goodgirl/examples/k6/soak.js) | Bounded Soak | Sustained traffic over time to identify memory leaks or connection drops. |
-| [`arrival-rate.js`](file:///Users/loyd/goodgirl/examples/k6/arrival-rate.js) | Arrival Rate | Open-model workload testing with `constant-arrival-rate` executor. |
-| [`custom-metrics.js`](file:///Users/loyd/goodgirl/examples/k6/custom-metrics.js) | Custom Metrics | Demonstrates native `Trend`, `Rate`, `Counter`, `Gauge` and custom thresholds. |
+## Quick Start (3 Easy Steps)
 
-## Running Load Tests
+### Step 1: Make sure `k6` is installed
+If you haven't installed Grafana k6 yet, run one of these commands in your terminal:
+- **Windows (PowerShell):** `winget install k6 --source winget` *(or `choco install k6`)*
+- **macOS:** `brew install k6`
+- **Linux (Ubuntu/Debian):** `sudo apt-get install k6`
 
-### 1. Verify k6 Environment
+### Step 2: Check if everything is ready
+Run the built-in load doctor to verify your setup:
 ```bash
 pnpm qa load doctor
 ```
+*(All 6 checks should show `[PASS]`.)*
 
-### 2. Execute Workloads
+### Step 3: Run your first load test
+Run the built-in smoke test (GoodGirl automatically starts a local test server on port `4173` if needed):
 ```bash
-# Run smoke validation
 pnpm qa load run examples/k6/smoke.js
-
-# Run ramping load test
-pnpm qa load run examples/k6/load.js
-
-# Run stress test
-pnpm qa load run examples/k6/stress.js
-
-# Run spike test
-pnpm qa load run examples/k6/spike.js
-
-# Run soak test
-pnpm qa load run examples/k6/soak.js
-
-# Run arrival rate test
-pnpm qa load run examples/k6/arrival-rate.js
-
-# Run custom metrics test
-pnpm qa load run examples/k6/custom-metrics.js
 ```
 
-### 3. CLI Overrides
+---
+
+## Which Load Test Should I Run?
+
+Not sure which script to pick? Use this cheat sheet:
+
+| Script | Test Type | When to Use It | Default Traffic |
+| :--- | :--- | :--- | :--- |
+| [`smoke.js`](./smoke.js) | **Smoke Test** | Run this **first** to verify your script works and the server responds with zero errors under minimal load. | 1 user for 3s |
+| [`load.js`](./load.js) | **Normal Load Test** | Simulate expected day-to-day traffic (gradual ramp-up, steady traffic, and ramp-down). | Ramps up to 5 users over 8s |
+| [`stress.js`](./stress.js) | **Stress Test** | Push your server harder than normal traffic to see how it handles heavy load and find bottlenecks. | Ramps up to 15 users over 8s |
+| [`spike.js`](./spike.js) | **Spike Test** | Simulate a sudden surge of users (e.g., flash sale or viral post) and check if the server recovers cleanly. | Instant jump to 20 users |
+| [`soak.js`](./soak.js) | **Soak / Endurance Test** | Run steady traffic over a longer period to catch memory leaks, database connection exhaustion, or slowdowns. | 4 users for 6s *(override with `--duration`)* |
+| [`arrival-rate.js`](./arrival-rate.js) | **Constant Request Rate** | Maintain a fixed number of requests per second (20 req/s) regardless of how fast or slow the server responds. | 20 iterations/sec for 3s |
+| [`custom-metrics.js`](./custom-metrics.js) | **Custom Metrics Demo** | Track custom business metrics (`Trend`, `Rate`, `Counter`, `Gauge`) alongside standard HTTP metrics. | 3 users for 3s |
+
+---
+
+## How to Load Test Your Own Website or API
+
+### 1. Test an External or Staging URL
+By default, GoodGirl blocks non-local URLs (`localhost` / `127.0.0.1`) so you don't accidentally flood a live production server.
+To test your staging or external server, pass `-e BASE_URL=...` and `--allow-external`:
+
 ```bash
-# Override virtual users and duration
-pnpm qa load run examples/k6/smoke.js --vus 5 --duration 10s
+# Run a smoke check against your staging server
+pnpm qa load run examples/k6/smoke.js \
+  -e BASE_URL=https://staging.your-app.com \
+  --allow-external
+```
 
-# Pass custom environment variable
-pnpm qa load run examples/k6/smoke.js -e BASE_URL=http://127.0.0.1:4173
+### 2. Change the Number of Users (`--vus`) and Duration (`--duration`)
+You don't need to edit the `.js` file to change the traffic size—just pass CLI flags:
 
-# Authorize external target execution
-pnpm qa load run examples/k6/smoke.js --allow-external -e BASE_URL=https://staging.internal.net
+```bash
+# Simulate 25 concurrent users for 1 minute
+pnpm qa load run examples/k6/smoke.js \
+  -e BASE_URL=https://staging.your-app.com \
+  --vus 25 \
+  --duration 1m \
+  --allow-external
+```
 
-# Stream raw k6 output
+### 3. Use Custom Ramp-Up / Ramp-Down Stages (`--stage`)
+Want to gradually increase users and then ramp down? Use `--stage <duration>:<users>`:
+
+```bash
+# Ramp to 10 users over 15s, hold 30 users for 30s, ramp down to 0 over 10s
+pnpm qa load run examples/k6/load.js \
+  -e BASE_URL=https://staging.your-app.com \
+  --stage 15s:10 30s:30 10s:0 \
+  --allow-external
+```
+
+### 4. Create Your Own Simple Load Script
+You can create your own `.js` file anywhere in your project (for example, `my-api-load.js`):
+
+```javascript
+import http from "k6/http";
+import { check, sleep } from "k6";
+
+const BASE_URL = __ENV.BASE_URL || "http://127.0.0.1:4173";
+
+export const options = {
+  vus: 10,
+  duration: "30s",
+  thresholds: {
+    http_req_failed: ["rate<0.01"],   // Less than 1% failed requests
+    http_req_duration: ["p(95)<500"], // 95% of requests must finish under 500ms
+  },
+};
+
+export default function () {
+  const res = http.get(`${BASE_URL}/api/health`);
+
+  check(res, {
+    "status is 200": (r) => r.status === 200,
+  });
+
+  sleep(0.5); // Wait 0.5s between requests per virtual user
+}
+```
+
+Then run it with:
+```bash
+pnpm qa load run my-api-load.js
+```
+
+---
+
+## How to Read the Terminal Summary
+
+After every run, GoodGirl prints a clean summary card:
+
+- **Overall Status (`PASSED` / `FAILED`)**: Shows whether all checks and performance thresholds passed.
+- **HTTP Latency (`http_req_duration`)**:
+  - `avg` / `med`: Average and median response time.
+  - `p(90)` / `p(95)` / `p(99)`: **90%, 95%, and 99% of requests were faster than this number.** *(Focus on `p(95)` and `p(99)` to spot slow requests affecting real users!)*
+- **Throughput & Requests**:
+  - `Total Requests (req/s)`: Total HTTP calls made and the requests-per-second rate.
+  - `Failed Requests`: Number and percentage of HTTP requests that timed out or returned errors.
+- **Threshold Results**: Pass/fail rules defined in your script (if any threshold fails, the command exits with code `99` so your CI pipeline catches slowdowns automatically).
+- **JSON Reports**:
+  - `goodgirl-results/load-summary.json` — Clean, normalized GoodGirl JSON report.
+  - `goodgirl-results/k6-raw-summary.json` — Raw native k6 summary output.
+
+---
+
+## Useful Extra Flags
+
+```bash
+# Save the normalized JSON report to a custom file path
+pnpm qa load run examples/k6/smoke.js --json-report reports/my-load-report.json
+
+# Stream raw k6 console output while running
 pnpm qa load run examples/k6/smoke.js --raw
 
-# Pass native k6 flags
+# Pass any native k6 flag after "--"
 pnpm qa load run examples/k6/smoke.js -- --http-debug
 ```
 
 ## Safety Controls
-By default, GoodGirl load tests only permit execution against localhost and loopback interfaces (`127.0.0.1`, `localhost`, `::1`). To execute against remote or non-local endpoints, pass `--allow-external` or configure `k6.allowExternal: true` in `goodgirl.config.ts`.
 
-> **Limitation Notice**: Target safety verification inspects literal URL string matches within script source files. Dynamically constructed URLs, environment variable targets, or HTTP server redirects cannot be guaranteed detectable via static inspection.
+By default, GoodGirl load tests only allow local targets (`127.0.0.1`, `localhost`, `::1`). To test remote or staging servers, pass `--allow-external` on the CLI or set `k6.allowExternal: true` in `goodgirl.config.ts`.
+
+> **Limitation Notice**: Target safety verification inspects literal URL strings inside script files and CLI `--env` arguments. Dynamically constructed URLs or HTTP server redirects cannot be guaranteed detectable via static inspection.

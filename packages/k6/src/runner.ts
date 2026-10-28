@@ -110,14 +110,15 @@ export async function runK6Test(
   // Enforce safe target authorization
   const safety = validateScriptTargetSafety(scriptPath, {
     allowedTargets: config?.allowedTargets,
-    allowExternal: options.allowExternal || config?.allowExternalTargets,
+    allowExternal: options.allowExternal || config?.allowExternalTargets || config?.allowExternal,
+    env: options.env,
   });
 
   if (!safety.safe) {
     throw new Error(safety.reason ?? "Target authorization check failed");
   }
 
-  const { resultsDir, k6JsonReportPath } = getK6ResultsPaths(cwd);
+  const { resultsDir, k6JsonReportPath } = getK6ResultsPaths(cwd, config?.resultsDir);
   ensureDirectoryExists(resultsDir);
 
   const summaryExportPath = options.summaryExport

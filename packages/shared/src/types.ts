@@ -28,6 +28,7 @@ export interface K6Config {
   defaultVUs?: number;
   defaultDuration?: string;
   summaryTrendStats?: string[];
+  resultsDir?: string;
 }
 
 export interface SecurityConfig {

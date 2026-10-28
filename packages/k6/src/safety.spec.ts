@@ -64,4 +64,26 @@ describe("k6 Target Safety & Allowlist", () => {
       unlinkSync(tempFile);
     }
   });
+
+  it("inspects CLI environment variable URLs for non-local targets", () => {
+    const tempFile = join(process.cwd(), "temp-safety-env.js");
+    writeFileSync(tempFile, `http.get((__ENV.BASE_URL || 'http://127.0.0.1:4173') + '/api/health');`);
+
+    try {
+      const blockedResult = validateScriptTargetSafety(tempFile, {
+        allowExternal: false,
+        env: { BASE_URL: "https://staging.external-target.com" },
+      });
+      expect(blockedResult.safe).toBe(false);
+      expect(blockedResult.blockedTargets).toContain("https://staging.external-target.com");
+
+      const allowedResult = validateScriptTargetSafety(tempFile, {
+        allowExternal: true,
+        env: { BASE_URL: "https://staging.external-target.com" },
+      });
+      expect(allowedResult.safe).toBe(true);
+    } finally {
+      unlinkSync(tempFile);
+    }
+  });
 });

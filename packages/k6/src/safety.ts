@@ -11,6 +11,7 @@ export interface TargetSafetyValidation {
 export interface TargetSafetyOptions {
   allowedTargets?: string[];
   allowExternal?: boolean;
+  env?: Record<string, string>;
 }
 
 /**
@@ -64,7 +65,10 @@ export function validateScriptTargetSafety(
   }
 
   const content = readFileSync(scriptPath, "utf-8");
-  const urls = extractTargetUrls(content);
+  const envText = options.env ? Object.values(options.env).join("\n") : "";
+  const urls = Array.from(
+    new Set([...extractTargetUrls(content), ...extractTargetUrls(envText)]),
+  );
 
   const allowedHosts = [
     ...DEFAULT_ALLOWED_HOSTS,

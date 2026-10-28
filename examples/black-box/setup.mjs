@@ -1,0 +1,13 @@
+import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { dirname, resolve, relative, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, "../..");
+if (!process.argv[2]) throw new Error("Provide a destination outside GoodGirl, e.g. node examples/black-box/setup.mjs C:\\QA-Lab");
+const destination = resolve(process.argv[2]);
+const rel = relative(root, destination);
+if (!isAbsolute(rel) && !rel.startsWith("..")) throw new Error("Choose a directory outside the GoodGirl source tree.");
+if (existsSync(destination) && readdirSync(destination).length) throw new Error("Destination must be empty.");
+mkdirSync(destination, { recursive: true });
+cpSync(join(here, "templates"), destination, { recursive: true });
+console.log(`Created independent target and QA projects at ${destination}. See examples/black-box/README.md for commands.`);

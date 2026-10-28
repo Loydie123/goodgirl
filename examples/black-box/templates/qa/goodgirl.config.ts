@@ -1,0 +1,1 @@
+export default { baseURL: process.env.GOODGIRL_BASE_URL || "http://127.0.0.1:4387", testDir: "tests", browsers: ["chromium", "firefox", "webkit"], retries: 0, workers: 2, trace: "on", video: "on", screenshots: "only-on-failure" };
